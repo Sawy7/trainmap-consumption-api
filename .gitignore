@@ -1,0 +1,14 @@
+package-lock.json
+node_modules/
+*.js
+!webpack.config.js
+public/assets
+index.js.LICENSE.txt
+venv/
+.directory
+.ipynb_checkpoints/
+__pycache__/
+public/vendor
+config.php
+# Background video
+*.mp4
