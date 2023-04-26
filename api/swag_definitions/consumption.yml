@@ -1,0 +1,59 @@
+parameters:
+  - in: "body"
+    name: "InputParams"
+    required: true
+    schema:
+      $ref: "#/definitions/AllParams"
+
+definitions:
+  AllParams:
+    type: "object"
+    properties:
+      coordinates:
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "number"
+          minItems: 3
+          maxItems: 3
+      station_orders:
+        type: "array"
+        items:
+          type: "integer"
+      velocity_ways:
+        type: "array"
+        items:
+          type: "object"
+          properties:
+            start:
+              type: "integer"
+              min: 0
+            end:
+              type: "integer"
+              min: 0
+            velocity:
+              type: "number"
+              min: 0
+
+  AllSuccess:
+    type: "object"
+    properties:
+
+  BadRequest:
+    type: "object"
+    properties:
+      status:
+        type: "integer"
+        format: "int32"
+        example: 400
+
+responses:
+  200:
+    description: Success
+    schema:
+      $ref: "#/definitions/AllSuccess"
+  400:
+    description: Bad request
+    schema:
+      $ref: "#/definitions/BadRequest"

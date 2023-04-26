@@ -2,3 +2,6 @@ numpy
 scipy
 matplotlib
 fastdtw
+Flask
+flasgger
+flask_restful

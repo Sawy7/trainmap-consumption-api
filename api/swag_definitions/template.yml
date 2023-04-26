@@ -1,0 +1,9 @@
+info:
+  description: "This API is for internal use only."
+  version: "1.0.0"
+  title: "Mapster Consumption API"
+  contact:
+    email: "jan.nemec@vsb.cz"
+externalDocs:
+  description: "Web App"
+  url: "http://rmap.vsb.cz"
