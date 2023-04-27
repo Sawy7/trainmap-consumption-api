@@ -123,7 +123,7 @@ def parse_velocity_ways_from_geojson(geojson_raw):
     geojson = json.loads(geojson_raw)
     velocity_ways = geojson["velocity_ways"]
     return velocity_ways
-# 
+
 def get_power_raw(force_values, velocity_values):
     return [force_values[i]*velocity_values[i] for i in range(len(force_values))]
 
@@ -465,7 +465,8 @@ class Consumption:
         self.stations = stations
         max_velocities = velocity_ways_to_max_velocity(velocity_ways)
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
-        self.series["elevation_values"] = [e[2] for e in self.points]
+        # Elevation is cropped from first station (to make everything same length)
+        self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:]
 
     def run(self):
         station_offset = 1
@@ -504,7 +505,6 @@ class Consumption:
             prev_dist_offset = self.series["dist_values"][-1]
 
         self.series["energy_from_exerted_force"] = get_energy_from_force(self.series["exerted_force_values"], self.series["dist_values"])
-
 
     def get_dtw(self, name):
         distance, path = fastdtw(self.series[name], self.comparison_series[name])

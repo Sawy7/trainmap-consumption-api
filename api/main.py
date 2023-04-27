@@ -62,7 +62,9 @@ class ConsumptionCall(Resource):
             "exerted_force_values": c.series["exerted_force_values"],
             "dist_values": c.series["dist_values"],
             "acceleration_values": c.series["acceleration_values"],
-            "velocity_values": c.series["velocity_values"]
+            "velocity_values": c.series["velocity_values"],
+            "exerted_energy": c.series["energy_from_exerted_force"],
+            "elevation_values": c.series["elevation_values"]
         }
 
 api.add_resource(ConsumptionCall, '/consumption')

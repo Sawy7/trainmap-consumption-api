@@ -26,7 +26,7 @@ class ConsumptionGUI(Consumption):
     def render_plot_window(self):
         self.plots = [
             PlotData("acceleration_values", "Zrychlení (m/s2)"),
-            PlotData("elevation_values", "Výška (m)"),
+            PlotData("elevation_values", "Výška (m)"), # This has different length (len(points) != len(point2point))
             PlotData("velocity_values", "Rychlost (m/s)"),
             PlotData("force_values", "Síla (N)"),
             PlotData("energy_from_exerted_force", "Energie z vydané síly (J)")
@@ -79,12 +79,13 @@ class ConsumptionGUI(Consumption):
 
 if __name__ == "__main__":
     c = ConsumptionGUI()
-    c.load_from_file("../testing-data/olo-opava.geojson")
+    # c.load_from_file("../testing-data/olo-opava.geojson")
+    c.load_from_file("/tmp/49002.json")
     c.run()
 
-    # Testing comparison
-    acceleration_test_cmp = [x-0.1 for x in c.series["acceleration_values"]]
-    c.insert_comparsion("dist_values", c.series["dist_values"]) # This is very neccesary
-    c.insert_comparsion("acceleration_values", acceleration_test_cmp)
+    # # Testing comparison
+    # acceleration_test_cmp = [x-0.1 for x in c.series["acceleration_values"]]
+    # c.insert_comparsion("dist_values", c.series["dist_values"]) # This is very neccesary
+    # c.insert_comparsion("acceleration_values", acceleration_test_cmp)
 
     c.render_plot_window()
