@@ -79,8 +79,8 @@ class ConsumptionGUI(Consumption):
 
 if __name__ == "__main__":
     c = ConsumptionGUI()
-    # c.load_from_file("../testing-data/olo-opava.geojson")
-    c.load_from_file("/tmp/49002.json")
+    c.load_from_file("../testing-data/olo-opava.geojson")
+    # c.load_from_file("/tmp/49002.json")
     c.run()
 
     # # Testing comparison

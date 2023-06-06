@@ -97,7 +97,10 @@ def calc_acceleration(force, mass):
     return force/mass
 
 def calc_velocity(acceleration, distance, init_velocity=0):
-    return math.sqrt(init_velocity**2 + 2*acceleration*distance) # Changing parameters can break this
+    try:
+        return math.sqrt(init_velocity**2 + 2*acceleration*distance) # Changing parameters can break this
+    except:
+        return 0
 
 def calc_reverse_acceleration(velocity, distance, init_velocity):
     return (velocity**2-init_velocity**2)/(2*distance)
@@ -408,8 +411,8 @@ class Consumption:
     def __init__(self):
         # Params
         self.params = {
-            "mass_locomotive": 80000,   # kg (80 t)
-            "mass_wagon": 1000000,      # kg (1000 t)
+            "mass_locomotive": 15000,   # kg
+            "mass_wagon": 30000*10,      # kg
             "acceleration_limit": None,
             "power_limit": 4500*1000    # 4500 kW
         }
@@ -463,6 +466,7 @@ class Consumption:
     def load(self, points, stations, velocity_ways):
         self.points = points
         self.stations = stations
+        self.stations.sort()
         max_velocities = velocity_ways_to_max_velocity(velocity_ways)
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
         # Elevation is cropped from first station (to make everything same length)
