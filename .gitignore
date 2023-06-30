@@ -10,5 +10,4 @@ venv/
 __pycache__/
 public/vendor
 config.php
-# Background video
-*.mp4
+DPO/

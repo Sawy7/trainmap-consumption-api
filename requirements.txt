@@ -5,3 +5,4 @@ fastdtw
 Flask
 flasgger
 flask_restful
+pandas
