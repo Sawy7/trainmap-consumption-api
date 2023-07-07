@@ -1,0 +1,1 @@
+ogr2ogr -f PostgreSQL PG:"host=localhost dbname=railway_mapdb user=postgres password=password" "test.geojson" -nln tram_testing_data -append

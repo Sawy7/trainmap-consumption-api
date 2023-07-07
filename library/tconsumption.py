@@ -61,12 +61,18 @@ def calc_curve_resistance_force(point_a, point_b, point_c, mass, numerator=650, 
 def get_elevation_slope_cos(point_a, point_b, dist):
     elevation_delta = point_b[2] - point_a[2]
     slope_distance = math.sqrt(elevation_delta**2 + dist**2)
-    return dist/slope_distance, slope_distance
+    if slope_distance == 0:
+        return 1, slope_distance
+    else:
+        return dist/slope_distance, slope_distance
 
 def get_elevation_slope_sin(point_a, point_b, dist):
     elevation_delta = abs(point_b[2] - point_a[2])
     slope_distance = math.sqrt(elevation_delta**2 + dist**2)
-    return elevation_delta/slope_distance, slope_distance
+    if slope_distance == 0:
+        return 0, slope_distance
+    else:
+        return elevation_delta/slope_distance, slope_distance
 
 def calc_normal_force(mass, angle_cos):
     return mass*G_TO_MS2*angle_cos
@@ -103,6 +109,8 @@ def calc_velocity(acceleration, distance, init_velocity=0):
         return 0
 
 def calc_reverse_acceleration(velocity, distance, init_velocity):
+    if distance == 0:
+        return 0
     return (velocity**2-init_velocity**2)/(2*distance)
 
 def calc_force(mass, acceleration):
@@ -297,6 +305,7 @@ class ConsumptionPart:
         
         for i in range(len(self.points)-1):
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i+1])
+            # print(self.points[i], self.points[i+1], immediate_distance)
             angle_cos, slope_distance = get_elevation_slope_cos(self.points[i], self.points[i+1], immediate_distance)
             angle_sin = get_elevation_slope_sin(self.points[i], self.points[i+1], immediate_distance)[0]
             
@@ -325,7 +334,6 @@ class ConsumptionPart:
                 final_force += - curve_res_force_l - curve_res_force_w
                 acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
                 acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
-                # print(testcc)
                 # NOTE: If acceleration exceeds the limit, we'll just cap it
                 if self.acceleration_limit is not None and acceleration > self.acceleration_limit:
                     acceleration = self.acceleration_limit
@@ -371,6 +379,8 @@ class ConsumptionPart:
         
             # print("nv", new_velocity, "mv", max_velocities[i])
             if new_velocity > self.max_velocities[i]:
+                # TODO: This branch is probably NEVER run
+                print("This should not have happened")
                 end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
                 for j in range(len(end_velocity_slow)):
                     self.force_values[-j-1] = end_force_slow[j]
@@ -396,6 +406,18 @@ class ConsumptionPart:
         self.get_ramp_up_six()
 
         # Braking (going backwards)
+        #  ____  ____      _    _  _____ _   _  ____ 
+        # | __ )|  _ \    / \  | |/ /_ _| \ | |/ ___|
+        # |  _ \| |_) |  / _ \ | ' / | ||  \| | |  _ 
+        # | |_) |  _ <  / ___ \| . \ | || |\  | |_| |
+        # |____/|_| \_\/_/   \_\_|\_\___|_| \_|\____|
+        #                                            
+        #  ____ ___ ____    _    ____  _     _____ ____  
+        # |  _ \_ _/ ___|  / \  | __ )| |   | ____|  _ \ 
+        # | | | | |\___ \ / _ \ |  _ \| |   |  _| | | | |
+        # | |_| | | ___) / ___ \| |_) | |___| |___| |_| |
+        # |____/___|____/_/   \_\____/|_____|_____|__
+        return
         end_force, end_exerted_force, end_velocity, deceleration_values, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(0, len(self.points)-1)
         for i in range(len(end_velocity)):
             self.force_values[-i-1] = end_force[i]
@@ -411,8 +433,8 @@ class Consumption:
     def __init__(self):
         # Params
         self.params = {
-            "mass_locomotive": 15000,   # kg
-            "mass_wagon": 30000*10,      # kg
+            "mass_locomotive": 30000,   # kg
+            "mass_wagon": 0,      # kg
             "acceleration_limit": None,
             "power_limit": 4500*1000    # 4500 kW
         }
