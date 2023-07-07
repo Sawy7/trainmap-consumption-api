@@ -165,7 +165,8 @@ class ConsumptionPart:
             self, mass_locomotive, mass_wagon, points,
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
-            acceleration_limit=None, power_limit=None):
+            acceleration_limit, power_limit, recuperation_coefficient
+        ):
         # Input parameters
         self.mass_locomotive = mass_locomotive
         self.mass_wagon = mass_wagon
@@ -177,6 +178,7 @@ class ConsumptionPart:
         self.running_res_p = running_res_p
         self.acceleration_limit = acceleration_limit
         self.power_limit = power_limit
+        self.recuperation_coefficient = recuperation_coefficient
 
         self.curve_res_force_all_l = []
         self.curve_res_force_all_w = []
@@ -257,7 +259,8 @@ class ConsumptionPart:
             else: # Decline
                 final_force = tangential_force_l + parallel_g_force_l + parallel_g_force_w - running_res_force_l - running_res_force_w
             final_force += - curve_res_force_l - curve_res_force_w
-            exerted_force = tangential_force_l
+            # Exerted force doesn't 100 % translate to gains - multiply by coefficient
+            exerted_force = tangential_force_l * self.recuperation_coefficient
             acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
             acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, end_velocity[-1])
             # NOTE: If acceleration exceeds the limit, we'll just cap it
@@ -406,18 +409,6 @@ class ConsumptionPart:
         self.get_ramp_up_six()
 
         # Braking (going backwards)
-        #  ____  ____      _    _  _____ _   _  ____ 
-        # | __ )|  _ \    / \  | |/ /_ _| \ | |/ ___|
-        # |  _ \| |_) |  / _ \ | ' / | ||  \| | |  _ 
-        # | |_) |  _ <  / ___ \| . \ | || |\  | |_| |
-        # |____/|_| \_\/_/   \_\_|\_\___|_| \_|\____|
-        #                                            
-        #  ____ ___ ____    _    ____  _     _____ ____  
-        # |  _ \_ _/ ___|  / \  | __ )| |   | ____|  _ \ 
-        # | | | | |\___ \ / _ \ |  _ \| |   |  _| | | | |
-        # | |_| | | ___) / ___ \| |_) | |___| |___| |_| |
-        # |____/___|____/_/   \_\____/|_____|_____|__
-        return
         end_force, end_exerted_force, end_velocity, deceleration_values, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(0, len(self.points)-1)
         for i in range(len(end_velocity)):
             self.force_values[-i-1] = end_force[i]
@@ -445,7 +436,8 @@ class Consumption:
             "Curve B": 55,
             "Running a": 1.35,
             "Running b": 0.0008,
-            "Running c": 0.00033
+            "Running c": 0.00033,
+            "Recuperation coefficient": 1
         }
 
         # Internal data
@@ -514,7 +506,8 @@ class Consumption:
                 (self.variable_params["Curve A"], self.variable_params["Curve B"]),
                 (self.variable_params["Running a"], self.variable_params["Running b"], self.variable_params["Running c"]),
                 self.params["acceleration_limit"],
-                self.params["power_limit"]
+                self.params["power_limit"],
+                self.variable_params["Recuperation coefficient"]
             )
             consumption_part.run()
 
