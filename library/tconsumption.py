@@ -165,7 +165,7 @@ class ConsumptionPart:
             self, mass_locomotive, mass_wagon, points,
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
-            acceleration_limit, power_limit, recuperation_coefficient
+            power_limit, recuperation_coefficient
         ):
         # Input parameters
         self.mass_locomotive = mass_locomotive
@@ -176,7 +176,6 @@ class ConsumptionPart:
         self.filter_window_curve = filter_window_curve
         self.curve_res_p = curve_res_p
         self.running_res_p = running_res_p
-        self.acceleration_limit = acceleration_limit
         self.power_limit = power_limit
         self.recuperation_coefficient = recuperation_coefficient
 
@@ -218,7 +217,8 @@ class ConsumptionPart:
         else:
             uncapped_power = calc_power_from_acceleration(mass, acceleration, velocity)
             if uncapped_power > self.power_limit:
-                return calc_acceleration_from_power(uncapped_power, mass, velocity)
+                # print(acceleration, calc_acceleration_from_power(self.power_limit, mass, velocity))
+                return calc_acceleration_from_power(self.power_limit, mass, velocity)
             else:
                 return acceleration
 
@@ -263,9 +263,7 @@ class ConsumptionPart:
             exerted_force = tangential_force_l * self.recuperation_coefficient
             acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
             acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, end_velocity[-1])
-            # NOTE: If acceleration exceeds the limit, we'll just cap it
-            if self.acceleration_limit is not None and acceleration > self.acceleration_limit:
-                acceleration = self.acceleration_limit
+            # NOTE: No acceleration capping - REMOVED (power capping)
             new_velocity = calc_velocity(acceleration, slope_distance, end_velocity[-1])
             
             if len(end_force) > 0:
@@ -337,11 +335,8 @@ class ConsumptionPart:
                 final_force += - curve_res_force_l - curve_res_force_w
                 acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
                 acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
-                # NOTE: If acceleration exceeds the limit, we'll just cap it
-                if self.acceleration_limit is not None and acceleration > self.acceleration_limit:
-                    acceleration = self.acceleration_limit
+                # NOTE: No acceleration capping - REMOVED (power capping)
                 new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
-                # print(acceleration, slope_distance, final_force, points[i+1][2] - points[i][2] > 0, curve_res_force_l + curve_res_force_w)
                 exerted_force = tangential_force_l
                 # Clamp it down, but only if the limit is the same (otherwise we could be clamping by A LOT)
                 if new_velocity > self.max_velocities[i] and self.max_velocities[i] == self.max_velocities[i-1]:
@@ -426,7 +421,6 @@ class Consumption:
         self.params = {
             "mass_locomotive": 30000,   # kg
             "mass_wagon": 0,      # kg
-            "acceleration_limit": None,
             "power_limit": 4500*1000    # 4500 kW
         }
         self.variable_params = {
@@ -505,7 +499,6 @@ class Consumption:
                 self.variable_params["Curve smoothing"],
                 (self.variable_params["Curve A"], self.variable_params["Curve B"]),
                 (self.variable_params["Running a"], self.variable_params["Running b"], self.variable_params["Running c"]),
-                self.params["acceleration_limit"],
                 self.params["power_limit"],
                 self.variable_params["Recuperation coefficient"]
             )
