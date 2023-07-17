@@ -367,16 +367,14 @@ class ConsumptionPart:
                     final_force = -parallel_g_force_l - parallel_g_force_w + running_res_force_l + running_res_force_w + curve_res_force_l + curve_res_force_w
                 acceleration = 0 # NOTE: If no change in speed, acceleration is ZERO
                 exerted_force = final_force
+                if exerted_force < 0:
+                    exerted_force *= self.recuperation_coefficient
                 
                 # debug:
                 self.tangential_f_values.append(0)
                 self.parallel_f_values.append(parallel_g_force_l+parallel_g_force_w)
                 self.running_res_f_values.append(running_res_force_l+running_res_force_w)
                 self.curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
-                
-            if final_force < 0:
-                # Exerted force doesn't 100 % translate to gains (when slowing down) - multiply by coefficient
-                final_force *= self.recuperation_coefficient
             
             self.force_values.append(final_force)
             self.exerted_force_values.append(exerted_force)
