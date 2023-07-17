@@ -234,7 +234,7 @@ class ConsumptionPart:
         parallel_f_values = []
         running_res_f_values = []
         curve_res_f_values = []
-            
+        
         for i in range(slow_point_index,0,-1):
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i-1])
             angle_cos, slope_distance = get_elevation_slope_cos(self.points[i-1], self.points[i], immediate_distance)
@@ -262,9 +262,12 @@ class ConsumptionPart:
             # Exerted force doesn't 100 % translate to gains - multiply by coefficient
             exerted_force = tangential_force_l * self.recuperation_coefficient
             acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
+            # Make acceleration when slowing down less
+            acceleration /= 4
             acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, end_velocity[-1])
             # NOTE: No acceleration capping - REMOVED (power capping)
             new_velocity = calc_velocity(acceleration, slope_distance, end_velocity[-1])
+            # print(new_velocity, i)
             
             if len(end_force) > 0:
                 end_velocity.append(new_velocity)
@@ -281,7 +284,8 @@ class ConsumptionPart:
                 new_velocity = self.velocity_values[i]
                 acceleration = calc_reverse_acceleration(end_velocity[-1], slope_distance, new_velocity) # Velocities are in 'reverse' order here (compared to next function)
                 reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, -acceleration)
-                exerted_force -= final_force-reverse_force
+                # Coeficient again
+                exerted_force -= (final_force-reverse_force) * self.recuperation_coefficient
                 final_force = reverse_force
                 
                 end_velocity[-1] = new_velocity
@@ -303,6 +307,7 @@ class ConsumptionPart:
         self.parallel_f_values = [0]
         self.running_res_f_values = [0]
         self.curve_res_f_values = [0]
+        self.braking_at_the_end = [0]
         
         for i in range(len(self.points)-1):
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i+1])
@@ -369,16 +374,19 @@ class ConsumptionPart:
                 self.running_res_f_values.append(running_res_force_l+running_res_force_w)
                 self.curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
                 
+            if final_force < 0:
+                # Exerted force doesn't 100 % translate to gains (when slowing down) - multiply by coefficient
+                final_force *= self.recuperation_coefficient
+            
             self.force_values.append(final_force)
             self.exerted_force_values.append(exerted_force)
             self.velocity_values.append(new_velocity)
             self.acceleration_values.append(acceleration)
             self.dist_values.append(self.dist_values[-1]+slope_distance)
+            self.braking_at_the_end.append(0)
         
             # print("nv", new_velocity, "mv", max_velocities[i])
-            if new_velocity > self.max_velocities[i]:
-                # TODO: This branch is probably NEVER run
-                print("This should not have happened")
+            if i > 0 and new_velocity > self.max_velocities[i]:
                 end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
                 for j in range(len(end_velocity_slow)):
                     self.force_values[-j-1] = end_force_slow[j]
@@ -414,6 +422,7 @@ class ConsumptionPart:
             self.parallel_f_values[-i-1] = end_parallel_f_values[i]
             self.running_res_f_values[-i-1] = end_running_res_f_values[i]
             self.curve_res_f_values[-i-1] = end_curve_res_f_values[i]
+            self.braking_at_the_end[-i-1] = 1
 
 class Consumption:
     def __init__(self):
@@ -455,7 +464,8 @@ class Consumption:
             "parallel_f_values": [],
             "running_res_f_values": [],
             "curve_res_f_values": [],
-            "energy_from_exerted_force": []
+            "energy_from_exerted_force": [],
+            "braking_at_the_end": []
         }
     
     def insert_comparsion(self, name, data):
@@ -513,6 +523,7 @@ class Consumption:
             self.series["parallel_f_values"] += consumption_part.parallel_f_values
             self.series["running_res_f_values"] += consumption_part.running_res_f_values
             self.series["curve_res_f_values"] += consumption_part.curve_res_f_values
+            self.series["braking_at_the_end"] += consumption_part.braking_at_the_end
 
             prev_dist_offset = self.series["dist_values"][-1]
 

@@ -7,3 +7,4 @@ flasgger
 flask_restful
 pandas
 psycopg2
+ruptures
