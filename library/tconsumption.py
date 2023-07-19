@@ -217,7 +217,6 @@ class ConsumptionPart:
         else:
             uncapped_power = calc_power_from_acceleration(mass, acceleration, velocity)
             if uncapped_power > self.power_limit:
-                # print(acceleration, calc_acceleration_from_power(self.power_limit, mass, velocity))
                 return calc_acceleration_from_power(self.power_limit, mass, velocity)
             else:
                 return acceleration
@@ -263,12 +262,17 @@ class ConsumptionPart:
             exerted_force = tangential_force_l * self.recuperation_coefficient
             acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
             # Make acceleration when slowing down less
-            acceleration /= 4
-            acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, end_velocity[-1])
-            # NOTE: No acceleration capping - REMOVED (power capping)
+            # Acceleration capping must be implemented differently (slowing down is not motor-capped)
+            prev_acc = acceleration
+            comfortable_acc = 0.89
+            acceleration = max(min(acceleration, comfortable_acc), -comfortable_acc)
+            if prev_acc > acceleration:
+                external_force = final_force - tangential_force_l
+                final_force = calc_force(self.mass_locomotive+self.mass_wagon, acceleration)
+                exerted_force = max(final_force - external_force, 0)
+                if exerted_force > 0:
+                    exerted_force *= self.recuperation_coefficient
             new_velocity = calc_velocity(acceleration, slope_distance, end_velocity[-1])
-            # print(new_velocity, i)
-            
             if len(end_force) > 0:
                 end_velocity.append(new_velocity)
             end_force.append(-final_force) # NOTE: Braking force has opposite direction
@@ -339,10 +343,17 @@ class ConsumptionPart:
                     final_force = tangential_force_l + parallel_g_force_l + parallel_g_force_w - running_res_force_l - running_res_force_w
                 final_force += - curve_res_force_l - curve_res_force_w
                 acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
+                prev_acc = acceleration
                 acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
                 # NOTE: No acceleration capping - REMOVED (power capping)
                 new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
                 exerted_force = tangential_force_l
+                if prev_acc > acceleration:
+                    external_force = final_force - tangential_force_l
+                    final_force = calc_force(self.mass_locomotive+self.mass_wagon, acceleration)
+                    exerted_force = final_force - external_force
+                    if exerted_force < 0:
+                        exerted_force *= self.recuperation_coefficient
                 # Clamp it down, but only if the limit is the same (otherwise we could be clamping by A LOT)
                 if new_velocity > self.max_velocities[i] and self.max_velocities[i] == self.max_velocities[i-1]:
                     new_velocity = self.max_velocities[i]
@@ -383,7 +394,6 @@ class ConsumptionPart:
             self.dist_values.append(self.dist_values[-1]+slope_distance)
             self.braking_at_the_end.append(0)
         
-            # print("nv", new_velocity, "mv", max_velocities[i])
             if i > 0 and new_velocity > self.max_velocities[i]:
                 end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
                 for j in range(len(end_velocity_slow)):
@@ -395,6 +405,7 @@ class ConsumptionPart:
                     self.parallel_f_values[-i-1] = end_parallel_f_values[j]
                     self.running_res_f_values[-i-1] = end_running_res_f_values[j]
                     self.curve_res_f_values[-i-1] = end_curve_res_f_values[j]
+                    # self.braking_at_the_end[-i-1] = 1
 
     def run(self):
         # Manually filter elevation values
@@ -494,6 +505,9 @@ class Consumption:
         for i in range(len(self.stations)-1):
             if i == len(self.stations)-2:
                 station_offset = 0
+            # Debug:
+            # if i <= 4:
+            #     continue
             
             split_points = self.points[self.stations[i]:self.stations[i+1]-station_offset+1]
             split_max_velocities_in_mps = self.max_velocities_in_mps[self.stations[i]:self.stations[i+1]-station_offset+1]
