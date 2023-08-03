@@ -496,8 +496,8 @@ class Consumption:
         self.stations.sort()
         max_velocities = velocity_ways_to_max_velocity(velocity_ways)
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
-        # Elevation is cropped from first station (to make everything same length)
-        self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:]
+        # Elevation is cropped from first to last station (to make everything same length)
+        self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:self.stations[-1]+1]
 
     def run(self):
         station_offset = 1
