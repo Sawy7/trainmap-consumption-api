@@ -35,6 +35,9 @@ definitions:
             velocity:
               type: "number"
               min: 0
+      energy_in_kwh:
+        type: "boolean"
+        example: true
 
   AllSuccess:
     type: "object"

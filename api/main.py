@@ -49,6 +49,8 @@ class ConsumptionCall(Resource):
     def post(self):
         post_json = request.get_json()
 
+        print(post_json["station_orders"])
+
         c = Consumption()
         c.load(
             post_json["coordinates"],
@@ -57,13 +59,19 @@ class ConsumptionCall(Resource):
         )
         c.run()
 
+        
+        if post_json["energy_in_kwh"]:
+            exerted_energy = [x/3600000 for x in c.series["energy_from_exerted_force"]]
+        else:
+            exerted_energy = c.series["energy_from_exerted_force"]
+
         return {
             "force_values": c.series["force_values"],
             "exerted_force_values": c.series["exerted_force_values"],
             "dist_values": c.series["dist_values"],
             "acceleration_values": c.series["acceleration_values"],
             "velocity_values": c.series["velocity_values"],
-            "exerted_energy": c.series["energy_from_exerted_force"],
+            "exerted_energy": exerted_energy,
             "elevation_values": c.series["elevation_values"]
         }
 
