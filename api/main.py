@@ -49,16 +49,20 @@ class ConsumptionCall(Resource):
     def post(self):
         post_json = request.get_json()
 
-        print(post_json["station_orders"])
-
         c = Consumption()
+
+        # Modifiable params
+        c.params["mass_locomotive"] = post_json["mass_locomotive_kg"]
+        c.params["mass_wagon"] = post_json["mass_wagon_kg"]
+        c.variable_params["Recuperation coefficient"] = post_json["recuperation_coef"]
+        c.params["power_limit"] = post_json["power_limit_kw"]*1000
+
         c.load(
             post_json["coordinates"],
             post_json["station_orders"],
             post_json["velocity_ways"]
         )
         c.run()
-
         
         if post_json["energy_in_kwh"]:
             exerted_energy = [x/3600000 for x in c.series["energy_from_exerted_force"]]

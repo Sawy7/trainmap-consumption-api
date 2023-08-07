@@ -35,6 +35,23 @@ definitions:
             velocity:
               type: "number"
               min: 0
+      mass_locomotive_kg:
+        type: "number"
+        min: 0
+        example: 34500
+      mass_wagon_kg:
+        type: "number"
+        min: 0
+        example: 0
+      power_limit_kw:
+        type: "number"
+        min: 0
+        example: 600
+      recuperation_coef:
+        type: "number"
+        min: 0
+        max: 1
+        example: 0.5
       energy_in_kwh:
         type: "boolean"
         example: true
