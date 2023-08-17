@@ -134,14 +134,36 @@ class MPTuning(multiprocessing.Process):
         distance = fastdtw(energy_calculated, energy_real)[0]
         self.distance_queue.put(distance)
 
+cur_tp_idx = 0
+new_tp = True
 def tweak_params(to_tweak, working_params, best_params):
-    for k in to_tweak.keys():
-        if not to_tweak[k]["done"]:
-            if working_params[k] < to_tweak[k]["max"]:  
-                working_params[k] += to_tweak[k]["step"]
-                return k
-            working_params[k] = best_params[k]
-            to_tweak[k]["done"] = True
+    global cur_tp_idx, new_tp
+
+    t = to_tweak[cur_tp_idx]
+    if new_tp:
+        new_tp = False
+        working_params[t["name"]] = 0
+    
+    if working_params[t["name"]] >= t["max"]:
+        working_params[t["name"]] = best_params[t["name"]]
+        cur_tp_idx += 1
+        new_tp = True
+        if cur_tp_idx >= len(to_tweak):
+            cur_tp_idx = 0
+            return None
+        return tweak_params(to_tweak, working_params, best_params)
+
+    working_params[t["name"]] += t["step"]
+
+    return t["name"]
+    # for k in to_tweak:
+    #     if not k["done"]:
+    #         if working_params[k["name"]] < k["max"]:  
+    #             working_params[k["name"]] += k["step"]
+    #             return k
+    #         working_params[k["name"]] = best_params[k["name"]]
+    #         k["done"] = True
+    # return None
 
 if __name__ == "__main__":
     station_cache = {}
@@ -149,47 +171,61 @@ if __name__ == "__main__":
     working_params = {
         "Elevation smoothing": 100,
         "Curve smoothing": 10,
-        "Curve A": 1,
-        "Curve B": 0,
-        "Running a": 0,
-        "Running b": 0,
-        "Running c": 0,
-        "Recuperation coefficient": 0
+        "Curve A": 650,
+        "Curve B": 55,
+        "Running a": 1.35,
+        "Running b": 0.0008,
+        "Running c": 0.00033,
+        "Recuperation coefficient": 0.5,
+        "Comfortable acceleration": 0.89
     }
-    to_tweak = {
-        "Recuperation coefficient": {
+    to_tweak = [
+        {
+            "name": "Recuperation coefficient",
             "max": 1,
             "step": 0.01,
             "done": False
         },
-        "Curve A": {
-            "max": 650,
+        {
+            "name": "Curve A",
+            "max": 1000,
             "step": 1,
             "done": False
         },
-        "Curve B": {
-            "max": 55,
+        {
+            "name": "Curve B",
+            "max": 100,
             "step": 1,
             "done": False
         },
-        "Running a": {
-            "max": 1.35,
+        {
+            "name": "Running a",
+            "max": 2,
             "step": 0.01,
             "done": False
         },
-        "Running b": {
-            "max": 0.0008,
+        {
+            "name": "Running b",
+            "max": 0.1,
             "step": 0.0001,
             "done": False
         },
-        "Running c": {
-            "max": 0.00033,
+        {
+            "name": "Running c",
+            "max": 0.01,
             "step": 0.00001,
             "done": False
+        },
+        {
+            "name": "Comfortable acceleration",
+            "max": 1,
+            "step": 0.01,
+            "done": False
         }
-    }
+    ]
     best_distance = None
     best_params = None
+    prev_best_distance = None
 
     # Generate caches
     mpcs = [MPCaching(x[0], x[1]) for x in REF_PAIRS]
@@ -206,8 +242,11 @@ if __name__ == "__main__":
     while True:
         distances = []
         tweak_name = tweak_params(to_tweak, working_params, best_params)
-        if working_params["Running c"] >= 0.00033:
-            break
+        if tweak_name is None:
+            if prev_best_distance is not None and best_distance >= prev_best_distance:
+                break
+            prev_best_distance = best_distance
+            continue
         mps = []
         for mc in mpcs:
             m = MPTuning(mc.csv_path, mc.geojson_path)

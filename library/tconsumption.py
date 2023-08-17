@@ -165,7 +165,8 @@ class ConsumptionPart:
             self, mass_locomotive, mass_wagon, points,
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
-            power_limit, recuperation_coefficient
+            power_limit, recuperation_coefficient,
+            comfortable_acceleration
         ):
         # Input parameters
         self.mass_locomotive = mass_locomotive
@@ -178,6 +179,7 @@ class ConsumptionPart:
         self.running_res_p = running_res_p
         self.power_limit = power_limit
         self.recuperation_coefficient = recuperation_coefficient
+        self.comfortable_acceleration = comfortable_acceleration
 
         self.curve_res_force_all_l = []
         self.curve_res_force_all_w = []
@@ -264,8 +266,7 @@ class ConsumptionPart:
             # Make acceleration when slowing down less
             # Acceleration capping must be implemented differently (slowing down is not motor-capped)
             prev_acc = acceleration
-            comfortable_acc = 0.89
-            acceleration = max(min(acceleration, comfortable_acc), -comfortable_acc)
+            acceleration = max(min(acceleration, self.comfortable_acceleration), -self.comfortable_acceleration)
             if prev_acc > acceleration:
                 external_force = final_force - tangential_force_l
                 final_force = calc_force(self.mass_locomotive+self.mass_wagon, acceleration)
@@ -449,7 +450,8 @@ class Consumption:
             "Running a": 1.35,
             "Running b": 0.0008,
             "Running c": 0.00033,
-            "Recuperation coefficient": 1
+            "Recuperation coefficient": 1,
+            "Comfortable acceleration": 0.89
         }
 
         # Internal data
@@ -522,7 +524,8 @@ class Consumption:
                 (self.variable_params["Curve A"], self.variable_params["Curve B"]),
                 (self.variable_params["Running a"], self.variable_params["Running b"], self.variable_params["Running c"]),
                 self.params["power_limit"],
-                self.variable_params["Recuperation coefficient"]
+                self.variable_params["Recuperation coefficient"],
+                self.variable_params["Comfortable acceleration"]
             )
             consumption_part.run()
 
