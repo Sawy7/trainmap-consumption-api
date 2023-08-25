@@ -8,3 +8,4 @@ flask_restful
 pandas
 psycopg2
 ruptures
+tabulate
