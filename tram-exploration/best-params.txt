@@ -1,1 +1,16 @@
 {'Elevation smoothing': 100, 'Curve smoothing': 10, 'Curve A': 999, 'Curve B': 100, 'Running a': 2.0000000000000013, 'Running b': 0.05440000000000053, 'Running c': 0.00034000000000000024, 'Recuperation coefficient': 0.5700000000000003, 'Comfortable acceleration': 0.9800000000000006}
+
+⏲️️  Round 1000
+✊ Currently best individual:
+  Params: {'Recuperation coefficient': 0.7967320649946268, 'Curve A': 396.0565253695169, 'Curve B': 78.62959113478365, 'Running a': 0.6057953729502361, 'Running b': 0.04653461658121542, 'Running c': 0.003191729405236269, 'Comfortable acceleration': 0.9713650959000307, 'Elevation smoothing': 100, 'Curve smoothing': 10}
+  Evals:
+    0: 506.7640395960103
+    1: 1177.695265022018
+    2: 950.0162695927099
+    3: 2962.6331124477633
+
+🫅 Best evals:
+  0: 506.7640395960103
+  1: 1177.695265022018
+  2: 950.0162695927099
+  3: 2962.6331124477633
