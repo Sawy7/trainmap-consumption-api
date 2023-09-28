@@ -6,18 +6,9 @@ import json
 import psycopg2
 from umparse import um_csv_parser, make_geojson
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input", action="store", help=".csv file to parse", required=True)
-    parser.add_argument("--host", action="store", help="DB server IP", required=True)
-    parser.add_argument("--dbname", action="store", help="DB name", required=True)
-    parser.add_argument("--dbuser", action="store", help="DB username", required=True)
-    parser.add_argument("--dbpass", action="store", help="DB user password", required=True)
-    parser.add_argument("--dbtable", action="store", help="DB table name", required=True)
-    args = parser.parse_args()
-    config = vars(args)
-
-    df = um_csv_parser(config["input"])
+def prep(config, df=None):
+    if df is None:
+        df = um_csv_parser(config["input"])
     tmp_file = "/tmp/tram-output.geojson"
 
     geojson = make_geojson(df["gps_latitude"], df["gps_longitude"])
@@ -96,7 +87,21 @@ if __name__ == "__main__":
 
     print(rows)
 
-    new_file = os.path.splitext(config["input"])[0] + ".geojson"
+    new_file = config["output"]
     with open(new_file, "w") as f:
         json.dump(modjson, f)
     cur.close()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--input", action="store", help=".csv file to parse", required=True)
+    parser.add_argument("--output", action="store", help=".geojson file to save", required=True)
+    parser.add_argument("--host", action="store", help="DB server IP", required=True)
+    parser.add_argument("--dbname", action="store", help="DB name", required=True)
+    parser.add_argument("--dbuser", action="store", help="DB username", required=True)
+    parser.add_argument("--dbpass", action="store", help="DB user password", required=True)
+    parser.add_argument("--dbtable", action="store", help="DB table name", required=True)
+    args = parser.parse_args()
+    config = vars(args)
+
+    prep(config)
