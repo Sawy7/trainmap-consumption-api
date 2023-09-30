@@ -85,8 +85,6 @@ def prep(config, df=None):
     rows = cur.fetchall()
     modjson["velocity_ways"] = [{"start":x[0], "end":x[1], "velocity":x[2]} for x in rows]
 
-    print(rows)
-
     new_file = config["output"]
     with open(new_file, "w") as f:
         json.dump(modjson, f)

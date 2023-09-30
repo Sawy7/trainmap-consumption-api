@@ -60,7 +60,10 @@ def calc_curve_resistance_force(point_a, point_b, point_c, mass, numerator=650, 
 
 def get_elevation_slope_cos(point_a, point_b, dist):
     elevation_delta = point_b[2] - point_a[2]
-    slope_distance = math.sqrt(elevation_delta**2 + dist**2)
+    if dist == 0: 
+        slope_distance = 0
+    else: 
+        slope_distance = math.sqrt(elevation_delta**2 + dist**2)
     if slope_distance == 0:
         return 1, slope_distance
     else:
@@ -68,7 +71,10 @@ def get_elevation_slope_cos(point_a, point_b, dist):
 
 def get_elevation_slope_sin(point_a, point_b, dist):
     elevation_delta = abs(point_b[2] - point_a[2])
-    slope_distance = math.sqrt(elevation_delta**2 + dist**2)
+    if dist == 0: 
+        slope_distance = 0
+    else: 
+        slope_distance = math.sqrt(elevation_delta**2 + dist**2)
     if slope_distance == 0:
         return 0, slope_distance
     else:
@@ -286,13 +292,15 @@ class ConsumptionPart:
             curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
                 
             if new_velocity >= self.velocity_values[i]:
-                new_velocity = self.velocity_values[i]
+                if len(end_velocity) == 1:
+                    new_velocity = end_velocity[0]
+                else:
+                    new_velocity = self.velocity_values[i]
                 acceleration = calc_reverse_acceleration(end_velocity[-1], slope_distance, new_velocity) # Velocities are in 'reverse' order here (compared to next function)
                 reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, -acceleration)
                 # Coeficient again
                 exerted_force -= (final_force-reverse_force) * self.recuperation_coefficient
                 final_force = reverse_force
-                
                 end_velocity[-1] = new_velocity
                 end_force[-1] = final_force # NOTE: Force here already has opposite direction (from reverse_force)
                 end_exerted_force[-1] = -exerted_force
@@ -319,7 +327,7 @@ class ConsumptionPart:
             # print(self.points[i], self.points[i+1], immediate_distance)
             angle_cos, slope_distance = get_elevation_slope_cos(self.points[i], self.points[i+1], immediate_distance)
             angle_sin = get_elevation_slope_sin(self.points[i], self.points[i+1], immediate_distance)[0]
-            
+
             # Forces on locomotive
             tangential_force_l = calc_tangential_force(self.mass_locomotive, angle_cos, self.velocity_values[-1])
             parallel_g_force_l = calc_parallel_g_force(self.mass_locomotive, angle_sin)
@@ -338,6 +346,7 @@ class ConsumptionPart:
             
             if not velocity_reached:
                 # Is it incline/decline?
+                print("incline judge", self.points[i+1][2] - self.points[i][2], "sin", angle_sin, immediate_distance, slope_distance, parallel_g_force_l+parallel_g_force_w)
                 if self.points[i+1][2] - self.points[i][2] > 0: # Incline
                     final_force = tangential_force_l - parallel_g_force_l - parallel_g_force_w - running_res_force_l - running_res_force_w
                 else: # Decline
@@ -346,6 +355,8 @@ class ConsumptionPart:
                 acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
                 prev_acc = acceleration
                 acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
+                # Try capping it to sane values - this should combat imprecise data
+                acceleration = max(min(acceleration, self.comfortable_acceleration), -self.comfortable_acceleration)
                 # NOTE: No acceleration capping - REMOVED (power capping)
                 new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
                 exerted_force = tangential_force_l
@@ -373,6 +384,7 @@ class ConsumptionPart:
                 new_velocity = self.velocity_values[-1]
                 # NOTE: when surface is not flat, we need to exert force to keep our speed
                 # Is it incline/decline?
+                print("incline judge", self.points[i+1][2] - self.points[i][2])
                 if self.points[i+1][2] - self.points[i][2] > 0: # Incline
                     final_force = parallel_g_force_l + parallel_g_force_w + running_res_force_l + running_res_force_w + curve_res_force_l + curve_res_force_w
                 else: # Decline
@@ -388,6 +400,7 @@ class ConsumptionPart:
                 self.running_res_f_values.append(running_res_force_l+running_res_force_w)
                 self.curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
             
+            # print("new_velocity", new_velocity, self.max_velocities[i])
             self.force_values.append(final_force)
             self.exerted_force_values.append(exerted_force)
             self.velocity_values.append(new_velocity)
