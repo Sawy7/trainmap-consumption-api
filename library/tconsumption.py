@@ -346,7 +346,6 @@ class ConsumptionPart:
             
             if not velocity_reached:
                 # Is it incline/decline?
-                print("incline judge", self.points[i+1][2] - self.points[i][2], "sin", angle_sin, immediate_distance, slope_distance, parallel_g_force_l+parallel_g_force_w)
                 if self.points[i+1][2] - self.points[i][2] > 0: # Incline
                     final_force = tangential_force_l - parallel_g_force_l - parallel_g_force_w - running_res_force_l - running_res_force_w
                 else: # Decline
@@ -384,7 +383,6 @@ class ConsumptionPart:
                 new_velocity = self.velocity_values[-1]
                 # NOTE: when surface is not flat, we need to exert force to keep our speed
                 # Is it incline/decline?
-                print("incline judge", self.points[i+1][2] - self.points[i][2])
                 if self.points[i+1][2] - self.points[i][2] > 0: # Incline
                     final_force = parallel_g_force_l + parallel_g_force_w + running_res_force_l + running_res_force_w + curve_res_force_l + curve_res_force_w
                 else: # Decline
