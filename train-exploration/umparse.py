@@ -51,6 +51,30 @@ def fix_gps_outliers(df):
                 "gps_latitude": batch["cor_point"]["gps_latitude"] + lat_shift,
             }
 
+def fix_speed_outliers(df):
+    df["gps_speed_delta"] = abs(df["gps_speed"] - df["gps_speed"].shift(1))
+    df["gps_speed_delta"].fillna(0, inplace=True)
+
+    df["gps_speed_raw"] = df["gps_speed"]
+
+    threshold = 0.3
+    delta_limit = df["gps_speed_delta"].max() * threshold
+    prev_row = None
+    for i,row in df.iterrows():
+        if prev_row is None:
+            prev_row = row
+            continue
+
+        current_value = row["gps_speed"]
+        prev_value = prev_row["gps_speed"]
+        
+        if abs(current_value - prev_value) > delta_limit:
+            # print(i, abs(current_value - prev_value), delta_limit, df.iloc[i]["gps_speed_delta"])
+            if prev_value > current_value:
+                df.at[i, "gps_speed"] = prev_value
+
+        prev_row = df.iloc[i]
+
 def um_csv_parser(csv_path, start_from=0):
     # Load from csv
     df = pd.read_csv(csv_path, delimiter=",")
@@ -71,6 +95,9 @@ def um_csv_parser(csv_path, start_from=0):
 
     # Fix GPS outliers
     fix_gps_outliers(df)
+
+    # Fix GPS speed outliers
+    fix_speed_outliers(df)
 
     # Recalc distance
     calc_distance_all(df)
