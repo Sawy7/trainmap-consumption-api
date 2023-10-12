@@ -1,6 +1,4 @@
 import pandas as pd
-import numpy as np
-from datetime import datetime
 import json
 from tconsumption import calc_distance_two_points
 
