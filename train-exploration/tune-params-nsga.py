@@ -14,7 +14,7 @@ BETTER = 0
 WORSE = 1
 NOTHING = 2
 
-class ConsumptionFunction:
+class VelocityFunction:
     def __init__(
         self, bounds_and_steps,
         geojson_path, csv_path, from_idx, to_idx,
@@ -75,6 +75,101 @@ class ConsumptionFunction:
         velocity_calculated = c.series["velocity_values"]
         velocity_real = self.df_slice["gps_speed"]
         return fastdtw(velocity_calculated, velocity_real)[0]
+    
+    def get_random_params(self):
+        random_params = {}
+        for b in self.bounds_and_steps:
+            random_params[b["name"]] = random.uniform(b["min"], b["max"])
+        return random_params
+
+class NordConsumptionFunction:
+    def __init__(
+            self, bounds_and_steps,
+            csv_path, skip_first_m, geojson_path, first_dist_offset, velocity_fp,
+            mass_locomotive=56000, mass_wagon=0, power_limit=480*1000,
+            elevation_smoothing=100, curve_smoothing=10
+        ):
+        self.bounds_and_steps = bounds_and_steps
+        self.csv_path = csv_path
+        self.skip_first_m = skip_first_m
+        self.geojson_path = geojson_path
+        self.first_dist_offset = first_dist_offset
+        self.velocity_fp = velocity_fp
+        self.mass_locomotive = mass_locomotive
+        self.mass_wagon = mass_wagon
+        self.power_limit = power_limit
+        self.elevation_smoothing = elevation_smoothing
+        self.curve_smoothing = curve_smoothing
+
+        self.velocity_segment_cache = None
+        self.station_cache = None
+
+        self.load_nord_data()
+
+    def load_nord_data(self):
+        # Read and process
+        self.df = pd.read_csv(self.csv_path, delimiter=",", header=[0,1])
+        self.df.columns = [x[0] for x in self.df.columns]
+        self.df = self.df.rename(columns={"Unnamed: 0_level_0": "distance"})
+
+        # Remove first few stations
+        self.df = self.df[self.df["distance"] >= self.skip_first_m]
+        self.df.reset_index(inplace=True, drop=True)
+
+        # Reset variables
+        for k in self.df.keys():
+            offset_value = self.df[k].iloc[0]
+            self.df[k] = self.df[k] - offset_value
+
+    def map_velocity_2sim(self, points):
+        with open(self.velocity_fp) as f:
+            track_velocity = json.load(f)["velocity"]
+
+        dist_values = [0]
+        for i,p in enumerate(points):
+            if i+1 >= len(points):
+                continue
+            dist = tconsumption.calc_distance_two_points(p, points[i+1])
+            dist_values.append(dist+dist_values[-1])
+
+        max_velocities = []
+
+        for d in dist_values:
+            for tv in track_velocity[::-1]:
+                start_in_m = tv["start"]*1000
+                if self.first_dist_offset*1000 - d < start_in_m:
+                    max_velocities.append(tv["value"])
+                    break
+
+        return [x/3.6 for x in max_velocities]
+        
+    def get_vals(self, params):
+        # Calculated data
+        c = tconsumption.Consumption()
+
+        # Set variables
+        c.params["mass_locomotive"] = self.mass_locomotive
+        c.params["mass_wagon"] = self.mass_wagon
+        c.params["power_limit"] = self.power_limit
+
+        # Variables to tune
+        c.variable_params = params
+
+        # Fixed variables
+        c.variable_params["Elevation smoothing"] = self.elevation_smoothing
+        c.variable_params["Curve smoothing"] = self.curve_smoothing
+
+        c.load_from_file(self.geojson_path)
+        c.max_velocities_in_mps = self.map_velocity_2sim(c.points)
+
+        # Running the simulation
+        c.run()
+
+        # Compare two sets
+        energy_calculated = [x/3600000 for x in c.series["energy_from_exerted_force"]]
+        energy_nord = self.df["Battery"]
+        return fastdtw(energy_calculated, energy_nord)[0]
+        # return abs(energy_calculated[-1]-energy_nord.iloc[-1])
     
     def get_random_params(self):
         random_params = {}
@@ -310,28 +405,35 @@ if __name__ == "__main__":
     ]
 
     functions = [
-        ConsumptionFunction(
+        # VelocityFunction(
+        #     bounds_and_steps,
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_opava-krnov.geojson",
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+        #     1080, 3530, 112.329,
+        #     "../testing-data/velocity-data/310-pj.json"
+        # ),
+        # VelocityFunction(
+        #     bounds_and_steps,
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-krnov.geojson",
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+        #     3680, 4280, 90.213,
+        #     "../testing-data/velocity-data/310-pj.json"
+        # ),
+        # VelocityFunction(
+        #     bounds_and_steps,
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-milotice.geojson",
+        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+        #     5570, 7770, 87.056,
+        #     "../testing-data/velocity-data/310-pj.json"
+        # )
+
+        NordConsumptionFunction(
             bounds_and_steps,
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06_opava-krnov.geojson",
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-            1080, 3530, 112.329,
-            "../testing-data/velocity-data/310-pj.json"
-        ),
-        ConsumptionFunction(
-            bounds_and_steps,
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-krnov.geojson",
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-            3680, 4280, 90.213,
-            "../testing-data/velocity-data/310-pj.json"
-        ),
-        ConsumptionFunction(
-            bounds_and_steps,
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-milotice.geojson",
-            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-            5570, 7770, 87.056,
-            "../testing-data/velocity-data/310-pj.json"
+            "../testing-data/norway-sim/West_energy.csv", 36000,
+            "../testing-data/norway-sim/opava-olomouc.geojson",
+            116.193, "../testing-data/velocity-data/310.json"
         )
     ]
 
-    opti = Optimizer(functions, 10, 1000)
+    opti = Optimizer(functions, 10, 5000)
     opti.run()

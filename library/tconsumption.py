@@ -356,6 +356,19 @@ class ConsumptionPart:
                 acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
                 # Try capping it to sane values - this should combat imprecise data
                 acceleration = max(min(acceleration, self.comfortable_acceleration), -self.comfortable_acceleration)
+
+                #######
+                # power_now = (final_force - tangential_force_l) * immediate_distance # TODO: move external_force
+                # acc_from_ext = calc_acceleration_from_power(power_now, self.mass_locomotive+self.mass_wagon, self.velocity_values[-1])
+                # new_velocity_ext = calc_velocity(acc_from_ext, slope_distance, self.velocity_values[-1])
+                # if new_velocity_ext > self.velocity_values[-1]:
+                #     new_velocity = new_velocity_ext
+                #     final_force = final_force - tangential_force_l
+                #     exerted_force = 0
+                # print("acc", acceleration, "acc_ext", acc_from_ext)
+                # print("prev_velocity", self.velocity_values[-1], "new ext velocity", new_velocity_ext)
+                #######
+
                 # NOTE: No acceleration capping - REMOVED (power capping)
                 new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
                 exerted_force = tangential_force_l
@@ -365,6 +378,7 @@ class ConsumptionPart:
                     exerted_force = final_force - external_force
                     if exerted_force < 0:
                         exerted_force *= self.recuperation_coefficient
+
                 # Clamp it down, but only if the limit is the same (otherwise we could be clamping by A LOT)
                 if new_velocity > self.max_velocities[i] and self.max_velocities[i] == self.max_velocities[i-1]:
                     new_velocity = self.max_velocities[i]
@@ -518,9 +532,6 @@ class Consumption:
         for i in range(len(self.stations)-1):
             if i == len(self.stations)-2:
                 station_offset = 0
-            # Debug:
-            # if i <= 4:
-            #     continue
             
             split_points = self.points[self.stations[i]:self.stations[i+1]-station_offset+1]
             split_max_velocities_in_mps = self.max_velocities_in_mps[self.stations[i]:self.stations[i+1]-station_offset+1]
