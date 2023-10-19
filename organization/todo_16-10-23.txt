@@ -1,0 +1,2 @@
+- Udělat graf pro deltu mezi rychlostmi v čase
+    - Zjistit, jestli tam vzniká nějaká křivka, pro kterou by se dalo kompenzovat
