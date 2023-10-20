@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+from math import isnan
 from tconsumption import calc_distance_two_points
 
 def calculate_distance(row):
@@ -66,9 +67,10 @@ def fix_speed_outliers(df):
         current_value = row["gps_speed"]
         prev_value = prev_row["gps_speed"]
         
-        if abs(current_value - prev_value) > delta_limit:
+        # print(i, prev_value, current_value, abs(prev_value - current_value))
+        if abs(current_value - prev_value) > delta_limit or isnan(current_value):
             # print(i, abs(current_value - prev_value), delta_limit, df.iloc[i]["gps_speed_delta"])
-            if prev_value > current_value:
+            if prev_value > current_value or isnan(current_value):
                 df.at[i, "gps_speed"] = prev_value
 
         prev_row = df.iloc[i]

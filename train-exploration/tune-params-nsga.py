@@ -405,34 +405,34 @@ if __name__ == "__main__":
     ]
 
     functions = [
-        # VelocityFunction(
-        #     bounds_and_steps,
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_opava-krnov.geojson",
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-        #     1080, 3530, 112.329,
-        #     "../testing-data/velocity-data/310-pj.json"
-        # ),
-        # VelocityFunction(
-        #     bounds_and_steps,
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-krnov.geojson",
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-        #     3680, 4280, 90.213,
-        #     "../testing-data/velocity-data/310-pj.json"
-        # ),
-        # VelocityFunction(
-        #     bounds_and_steps,
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-milotice.geojson",
-        #     "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
-        #     5570, 7770, 87.056,
-        #     "../testing-data/velocity-data/310-pj.json"
-        # )
-
-        NordConsumptionFunction(
+        VelocityFunction(
             bounds_and_steps,
-            "../testing-data/norway-sim/West_energy.csv", 36000,
-            "../testing-data/norway-sim/opava-olomouc.geojson",
-            116.193, "../testing-data/velocity-data/310.json"
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06_opava-krnov.geojson",
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+            1080, 3530, 112.329,
+            "../testing-data/velocity-data/310-pj.json"
+        ),
+        VelocityFunction(
+            bounds_and_steps,
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-krnov.geojson",
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+            3680, 4280, 90.213,
+            "../testing-data/velocity-data/310-pj.json"
+        ),
+        VelocityFunction(
+            bounds_and_steps,
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06_krnov-milotice.geojson",
+            "../testing-data/um7/um7capture_2023-09-29_06-26-06.csv",
+            5570, 7770, 87.056,
+            "../testing-data/velocity-data/310-pj.json"
         )
+
+        # NordConsumptionFunction(
+        #     bounds_and_steps,
+        #     "../testing-data/norway-sim/West_energy.csv", 36000,
+        #     "../testing-data/norway-sim/opava-olomouc.geojson",
+        #     116.193, "../testing-data/velocity-data/310.json"
+        # )
     ]
 
     opti = Optimizer(functions, 10, 5000)
