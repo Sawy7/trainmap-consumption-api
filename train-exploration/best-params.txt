@@ -1,2 +1,10 @@
 // Closest DTW, weird shape
 {'Recuperation coefficient': 0.8602260605277046, 'Curve A': 575.3784889712672, 'Curve B': 50.884487668998446, 'Running a': 0.5893428836373225, 'Running b': 0.0347030945756226, 'Running c': 0.007779362373241165, 'Comfortable acceleration': 0.09694025769533192, 'Elevation smoothing': 100, 'Curve smoothing': 10}
+
+// 20-10-23 (automated, not tested)
+✊ Currently best individual:
+  Params: {'Recuperation coefficient': 0.4516092607953032, 'Curve A': 111.33547118269247, 'Curve B': 81.07334414732117, 'Running a': 0.5478135359553472, 'Running b': 0.053921382743798485, 'Running c': 0.00799413226741182, 'Comfortable acceleration': 0.11055350964330454, 'Elevation smoothing': 100, 'Curve smoothing': 10}
+  Evals:
+    0: 609.8420663977885
+    1: 166.12397205582494
+    2: 1235.6861051568792

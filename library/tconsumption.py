@@ -172,7 +172,7 @@ class ConsumptionPart:
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
             power_limit, recuperation_coefficient,
-            comfortable_acceleration
+            comfortable_acceleration, comp_poly
         ):
         # Input parameters
         self.mass_locomotive = mass_locomotive
@@ -187,6 +187,10 @@ class ConsumptionPart:
         self.recuperation_coefficient = recuperation_coefficient
         self.comfortable_acceleration = comfortable_acceleration
 
+        # Compensation polynomial (velocity)
+        self.comp_poly = comp_poly
+
+        # Working lists
         self.curve_res_force_all_l = []
         self.curve_res_force_all_w = []
         self.force_values = []
@@ -228,6 +232,11 @@ class ConsumptionPart:
                 return calc_acceleration_from_power(self.power_limit, mass, velocity)
             else:
                 return acceleration
+
+    def get_compensation(self, dist):
+        if self.comp_poly is None:
+            return 0
+        return max(0, self.comp_poly(dist))
 
     def slow_down_to_max_limit_six(self, max_velocity, slow_point_index):
         end_force = []
@@ -315,12 +324,16 @@ class ConsumptionPart:
         self.dist_values = [0]
         self.acceleration_values = [0]
         velocity_reached = False
+        start_compensated = False
         # debug:
         self.tangential_f_values = [0]
         self.parallel_f_values = [0]
         self.running_res_f_values = [0]
         self.curve_res_f_values = [0]
         self.braking_at_the_end = [0]
+
+        compensated_part = []
+        compensated_dist_offset = 0
         
         for i in range(len(self.points)-1):
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i+1])
@@ -341,10 +354,30 @@ class ConsumptionPart:
             curve_res_force_l = self.curve_res_force_all_l[i]
             curve_res_force_w = self.curve_res_force_all_w[i]
             
-            if velocity_reached and self.max_velocities[i] > self.max_velocities[i-1]:
+            if velocity_reached and not start_compensated:
+                compensated_part = [max(0, x-compensated_part[0]) for x in compensated_part]
+                compensated_part.reverse()
+                # print("comp part", compensated_part)
+                for j,cp in enumerate(compensated_part):
+                    # print("max", self.max_velocities[-j-1], "transform", self.velocity_values[-j-1], "->", self.velocity_values[-j-1]-cp)
+                    self.velocity_values[-j-1] = self.velocity_values[-j-1] - cp
+                start_compensated = True
+                compensated_part = []
+                print(f"Compensated up to {self.dist_values[-1]} m")
+
+            if velocity_reached and (self.max_velocities[i] > self.max_velocities[i-1] or self.velocity_values[-1] < self.max_velocities[i]):
                 velocity_reached = False
             
             if not velocity_reached:
+                ##############################################################################
+                if len(compensated_part) == 0:
+                    end_force_slow = self.slow_down_to_max_limit_six(0, i)[0]
+                    slowdown_point_count = len(end_force_slow)
+                    compensated_dist_offset = self.dist_values[-1]-self.dist_values[-slowdown_point_count]
+                    compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
+                    print("actual", self.dist_values[-1], "compensate by", compensated_dist_offset, "to be", self.dist_values[-1]-compensated_dist_offset)
+                    # compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
+                ##############################################################################
                 # Is it incline/decline?
                 if self.points[i+1][2] - self.points[i][2] > 0: # Incline
                     final_force = tangential_force_l - parallel_g_force_l - parallel_g_force_w - running_res_force_l - running_res_force_w
@@ -357,20 +390,18 @@ class ConsumptionPart:
                 # Try capping it to sane values - this should combat imprecise data
                 acceleration = max(min(acceleration, self.comfortable_acceleration), -self.comfortable_acceleration)
 
-                #######
-                # power_now = (final_force - tangential_force_l) * immediate_distance # TODO: move external_force
-                # acc_from_ext = calc_acceleration_from_power(power_now, self.mass_locomotive+self.mass_wagon, self.velocity_values[-1])
-                # new_velocity_ext = calc_velocity(acc_from_ext, slope_distance, self.velocity_values[-1])
-                # if new_velocity_ext > self.velocity_values[-1]:
-                #     new_velocity = new_velocity_ext
-                #     final_force = final_force - tangential_force_l
-                #     exerted_force = 0
-                # print("acc", acceleration, "acc_ext", acc_from_ext)
-                # print("prev_velocity", self.velocity_values[-1], "new ext velocity", new_velocity_ext)
-                #######
-
                 # NOTE: No acceleration capping - REMOVED (power capping)
                 new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
+                ##################################################################################
+                # Decrease velocity by polynom (found by comparing /w real data)
+                # compensated_velocity = self.get_compensation(self.dist_values[-1]+slope_distance)
+                comptensated_dist = self.dist_values[-1]-compensated_dist_offset+slope_distance
+                compensated_velocity = self.get_compensation(comptensated_dist)
+                # print(compensated_velocity, comptensated_dist, i)
+                compensated_part.append(compensated_velocity)
+                start_compensated = False
+                # print("comp from", i, last_raw)
+                ##################################################################################
                 exerted_force = tangential_force_l
                 if prev_acc > acceleration:
                     external_force = final_force - tangential_force_l
@@ -382,11 +413,15 @@ class ConsumptionPart:
                 # Clamp it down, but only if the limit is the same (otherwise we could be clamping by A LOT)
                 if new_velocity > self.max_velocities[i] and self.max_velocities[i] == self.max_velocities[i-1]:
                     new_velocity = self.max_velocities[i]
+                    # TODO: compensate velocity here also
                     acceleration = calc_reverse_acceleration(new_velocity, slope_distance, self.velocity_values[-1])
                     reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, acceleration)
                     exerted_force -= final_force-reverse_force
                     final_force = reverse_force
                     velocity_reached = True
+
+                if velocity_reached and new_velocity-compensated_velocity < self.max_velocities[i]:
+                    velocity_reached = False
                     
                 # debug:
                 self.tangential_f_values.append(tangential_force_l)
@@ -476,7 +511,9 @@ class Consumption:
             "Running b": 0.0008,
             "Running c": 0.00033,
             "Recuperation coefficient": 1,
-            "Comfortable acceleration": 0.89
+            "Comfortable acceleration": 0.89,
+            # "Compensation polynomial": np.poly1d([-1.9494156333280808e-14, 4.9173340030234155e-11, -4.531261473352924e-08, 1.5457227860221452e-05, 0.00332072288476179, 0.7453216365390641])
+            "Compensation polynomial": np.poly1d([-1.3169756479815293e-14, 4.271539912516026e-11, -3.874542069136512e-08, 2.677139343735735e-08, 0.00962245960144532, 0.619862570600036])
         }
 
         # Internal data
@@ -547,7 +584,8 @@ class Consumption:
                 (self.variable_params["Running a"], self.variable_params["Running b"], self.variable_params["Running c"]),
                 self.params["power_limit"],
                 self.variable_params["Recuperation coefficient"],
-                self.variable_params["Comfortable acceleration"]
+                self.variable_params["Comfortable acceleration"],
+                self.variable_params["Compensation polynomial"]
             )
             consumption_part.run()
 
