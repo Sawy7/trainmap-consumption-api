@@ -363,7 +363,6 @@ class ConsumptionPart:
                     self.velocity_values[-j-1] = self.velocity_values[-j-1] - cp
                 start_compensated = True
                 compensated_part = []
-                print(f"Compensated up to {self.dist_values[-1]} m")
 
             if velocity_reached and (self.max_velocities[i] > self.max_velocities[i-1] or self.velocity_values[-1] < self.max_velocities[i]):
                 velocity_reached = False
@@ -375,7 +374,6 @@ class ConsumptionPart:
                     slowdown_point_count = len(end_force_slow)
                     compensated_dist_offset = self.dist_values[-1]-self.dist_values[-slowdown_point_count]
                     compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
-                    print("actual", self.dist_values[-1], "compensate by", compensated_dist_offset, "to be", self.dist_values[-1]-compensated_dist_offset)
                     # compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
                 ##############################################################################
                 # Is it incline/decline?
