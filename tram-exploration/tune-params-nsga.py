@@ -47,6 +47,7 @@ class ConsumptionFunction:
         # Fixed variables
         c.variable_params["Elevation smoothing"] = self.elevation_smoothing
         c.variable_params["Curve smoothing"] = self.curve_smoothing
+        c.variable_params["Compensation polynomial"] = None
 
         c.load_from_file(self.geojson_path)
 
@@ -333,26 +334,27 @@ if __name__ == "__main__":
             "step": 0.01,
         }
     ]
+    DATA_PATH="../../enet-sz-data/real_rides/"
     functions = [
         ConsumptionFunction(
             bounds_and_steps,
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.csv",
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.csv",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson"
         ),
         ConsumptionFunction(
             bounds_and_steps,
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.csv",
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.csv",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.geojson"
         ),
         ConsumptionFunction(
             bounds_and_steps,
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.csv",
-            "../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.csv",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.geojson"
         ),
         ConsumptionFunction(
             bounds_and_steps,
-            "../testing-data/DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.csv",
-            "../testing-data/DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.geojson"
+            DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.csv",
+            DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.geojson"
         )
     ]
     opti = Optimizer(functions, 10, 1000)

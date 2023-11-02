@@ -227,10 +227,11 @@ if __name__ == "__main__":
             "step": 0.01,
         }
     ]
+    DATA_PATH="../../enet-sz-data/real_rides/"
     soma = SOMA(migrations=20, pop_size=20, prt=1, step=1, path_length=10)
     csf = ConsumptionFunction(
         bounds_and_steps=bounds_and_steps,
-        csv_path="../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.csv",
-        geojson_path="../testing-data/DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson"
+        csv_path=f"{DATA_PATH}DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.csv",
+        geojson_path=f"{DATA_PATH}DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson"
     )
     soma.run(csf)
