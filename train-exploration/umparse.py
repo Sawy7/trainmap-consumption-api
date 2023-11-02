@@ -79,7 +79,7 @@ def um_csv_parser(csv_path, start_from=0):
     # Load from csv
     df = pd.read_csv(csv_path, delimiter=",")
     df.drop(index=df.index[:start_from], axis=0, inplace=True)
-    print(df.columns)
+    # print(df.columns)
 
     # New cols (calculated)
     # Time
