@@ -60,10 +60,7 @@ def calc_curve_resistance_force(point_a, point_b, point_c, mass, numerator=650, 
 
 def get_elevation_slope_cos(point_a, point_b, dist):
     elevation_delta = point_b[2] - point_a[2]
-    if dist == 0: 
-        slope_distance = 0
-    else: 
-        slope_distance = math.sqrt(elevation_delta**2 + dist**2)
+    slope_distance = math.sqrt(elevation_delta**2 + dist**2)
     if slope_distance == 0:
         return 1, slope_distance
     else:
@@ -71,10 +68,7 @@ def get_elevation_slope_cos(point_a, point_b, dist):
 
 def get_elevation_slope_sin(point_a, point_b, dist):
     elevation_delta = abs(point_b[2] - point_a[2])
-    if dist == 0: 
-        slope_distance = 0
-    else: 
-        slope_distance = math.sqrt(elevation_delta**2 + dist**2)
+    slope_distance = math.sqrt(elevation_delta**2 + dist**2)
     if slope_distance == 0:
         return 0, slope_distance
     else:
