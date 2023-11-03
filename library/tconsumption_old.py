@@ -192,7 +192,7 @@ def calc_acceleration_from_power(power, mass, velocity):
 ###############################################################################
 class ConsumptionPart:
     def __init__(
-            self, series, mass_locomotive, mass_wagon, points,
+            self, mass_locomotive, mass_wagon, points,
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
             power_limit, recuperation_coefficient,
@@ -214,9 +214,17 @@ class ConsumptionPart:
         self.comp_poly = comp_poly
 
         # Working lists
-        self.series = series
         self.curve_res_force_all_l = []
         self.curve_res_force_all_w = []
+        self.force_values = []
+        self.exerted_force_values = []
+        self.dist_values = []
+        self.velocity_values = []
+        self.acceleration_values = []
+        self.tangential_f_values = []
+        self.parallel_f_values = []
+        self.running_res_f_values = []
+        self.curve_res_f_values = []
 
     def get_curve_resistance_force(self):
         # Curve forces
@@ -270,6 +278,11 @@ class ConsumptionPart:
         deceleration_values = []
         curve_res_force_l = 0
         curve_res_force_w = 0
+        # debug:
+        tangential_f_values = []
+        parallel_f_values = []
+        running_res_f_values = []
+        curve_res_f_values = []
 
         for i in range(slow_point_index, 0, -1):
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i-1])
@@ -314,12 +327,17 @@ class ConsumptionPart:
             end_force.append(-final_force) # NOTE: Braking force has opposite direction
             end_exerted_force.append(-exerted_force)
             deceleration_values.append(-acceleration) # NOTE: Deceleration has opposite direction
+            # debug:
+            tangential_f_values.append(tangential_force_l)
+            parallel_f_values.append(parallel_g_force_l+parallel_g_force_w)
+            running_res_f_values.append(running_res_force_l+running_res_force_w)
+            curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
 
-            if new_velocity >= self.series["velocity_values"][i]:
+            if new_velocity >= self.velocity_values[i]:
                 if len(end_velocity) == 1:
                     new_velocity = end_velocity[0]
                 else:
-                    new_velocity = self.series["velocity_values"][i]
+                    new_velocity = self.velocity_values[i]
                 acceleration = calc_reverse_acceleration(end_velocity[-1], slope_distance, new_velocity) # Velocities are in 'reverse' order here (compared to next function)
                 reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, -acceleration)
                 # Coeficient again
@@ -330,36 +348,40 @@ class ConsumptionPart:
                 end_exerted_force[-1] = -exerted_force
                 deceleration_values[-1] = -acceleration
                 break
-        return end_force, end_exerted_force, end_velocity, deceleration_values
+        return end_force, end_exerted_force, end_velocity, deceleration_values, tangential_f_values, parallel_f_values, running_res_f_values, curve_res_f_values
 
     def get_ramp_up_six(self):
-        self.series["force_values"][0] = 0
-        self.series["exerted_force_values"][0] = 0
-        self.series["velocity_values"][0] = 0
-        self.series["dist_values"][0] = 0
-        self.series["acceleration_values"][0] = 0
+        self.force_values = [0]
+        self.exerted_force_values = [0]
+        self.velocity_values = [0]
+        self.dist_values = [0]
+        self.acceleration_values = [0]
         velocity_reached = False
         start_compensated = False
+        # debug:
+        self.tangential_f_values = [0]
+        self.parallel_f_values = [0]
+        self.running_res_f_values = [0]
+        self.curve_res_f_values = [0]
+        self.braking_at_the_end = [0]
 
         compensated_part = []
         compensated_dist_offset = 0
 
         for i in range(len(self.points)-1):
-            series_i = i+1
             immediate_distance = calc_distance_two_points(self.points[i], self.points[i+1])
+            # print(self.points[i], self.points[i+1], immediate_distance)
             angle_cos, slope_distance = get_elevation_slope_cos(self.points[i], self.points[i+1], immediate_distance)
             angle_sin = get_elevation_slope_sin(self.points[i], self.points[i+1], immediate_distance)[0]
-            last_velocity = self.series["velocity_values"][series_i-1]
-            last_dist = self.series["dist_values"][series_i-1]
 
             # Forces on locomotive
-            tangential_force_l = calc_tangential_force(self.mass_locomotive, angle_cos, last_velocity)
+            tangential_force_l = calc_tangential_force(self.mass_locomotive, angle_cos, self.velocity_values[-1])
             parallel_g_force_l = calc_parallel_g_force(self.mass_locomotive, angle_sin)
-            running_res_force_l = calc_running_resistance_force(last_velocity, self.mass_locomotive, *self.running_res_p)
+            running_res_force_l = calc_running_resistance_force(self.velocity_values[-1], self.mass_locomotive, *self.running_res_p)
 
             # Forces on wagon
             parallel_g_force_w = calc_parallel_g_force(self.mass_wagon, angle_sin)
-            running_res_force_w = calc_running_resistance_force(last_velocity, self.mass_wagon, *self.running_res_p)
+            running_res_force_w = calc_running_resistance_force(self.velocity_values[-1], self.mass_wagon, *self.running_res_p)
 
             # Curve forces
             curve_res_force_l = self.curve_res_force_all_l[i]
@@ -369,11 +391,11 @@ class ConsumptionPart:
                 compensated_part = [max(0, x-compensated_part[0]) for x in compensated_part]
                 compensated_part.reverse()
                 for j, cp in enumerate(compensated_part):
-                    self.series["velocity_values"][series_i-j-1] = self.series["velocity_values"][series_i-j-1] - cp
+                    self.velocity_values[-j-1] = self.velocity_values[-j-1] - cp
                 start_compensated = True
                 compensated_part = []
 
-            if velocity_reached and (self.max_velocities[i] > self.max_velocities[i-1] or last_velocity < self.max_velocities[i]):
+            if velocity_reached and (self.max_velocities[i] > self.max_velocities[i-1] or self.velocity_values[-1] < self.max_velocities[i]):
                 velocity_reached = False
 
             if not velocity_reached:
@@ -381,11 +403,9 @@ class ConsumptionPart:
                 if len(compensated_part) == 0:
                     end_force_slow = self.slow_down_to_max_limit_six(0, i)[0]
                     slowdown_point_count = len(end_force_slow)
-                    if last_dist == 0:
-                        compensated_dist_offset = 0
-                    else:
-                        compensated_dist_offset = last_dist - self.series["dist_values"][series_i-slowdown_point_count]
-                        compensated_dist_offset = last_dist - compensated_dist_offset
+                    compensated_dist_offset = self.dist_values[-1]-self.dist_values[-slowdown_point_count]
+                    compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
+                    # compensated_dist_offset = self.dist_values[-1] - compensated_dist_offset
                 ##########################################################################################
                 # Is it incline/decline?
                 if self.points[i+1][2] - self.points[i][2] > 0:  # Incline
@@ -395,17 +415,16 @@ class ConsumptionPart:
                 final_force += - curve_res_force_l - curve_res_force_w
                 acceleration = calc_acceleration(final_force, self.mass_locomotive+self.mass_wagon)
                 prev_acc = acceleration
-                acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, last_velocity)
+                acceleration = self.cap_acceleration(self.mass_locomotive+self.mass_wagon, acceleration, self.velocity_values[-1])
                 # Try capping it to sane values - this should combat imprecise data
                 acceleration = max(min(acceleration, self.comfortable_acceleration), -self.comfortable_acceleration)
 
                 # NOTE: No acceleration capping - REMOVED (power capping)
-                new_velocity = calc_velocity(acceleration, slope_distance, last_velocity)
+                new_velocity = calc_velocity(acceleration, slope_distance, self.velocity_values[-1])
                 ###############################################################################
                 # Decrease velocity by polynom (found by comparing /w real data)
-                compensated_dist = last_dist-compensated_dist_offset+slope_distance
-                # print(last_dist, compensated_dist_offset, slope_distance, compensated_dist)
-                compensated_velocity = self.get_compensation(compensated_dist)
+                comptensated_dist = self.dist_values[-1]-compensated_dist_offset+slope_distance
+                compensated_velocity = self.get_compensation(comptensated_dist)
                 compensated_part.append(compensated_velocity)
                 start_compensated = False
                 ###############################################################################
@@ -421,7 +440,7 @@ class ConsumptionPart:
                 if new_velocity > self.max_velocities[i] and self.max_velocities[i] == self.max_velocities[i-1]:
                     new_velocity = self.max_velocities[i]
                     # TODO: compensate velocity here also
-                    acceleration = calc_reverse_acceleration(new_velocity, slope_distance, last_velocity)
+                    acceleration = calc_reverse_acceleration(new_velocity, slope_distance, self.velocity_values[-1])
                     reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, acceleration)
                     exerted_force -= final_force-reverse_force
                     final_force = reverse_force
@@ -430,8 +449,13 @@ class ConsumptionPart:
                 if velocity_reached and new_velocity-compensated_velocity < self.max_velocities[i]:
                     velocity_reached = False
 
+                # debug:
+                self.tangential_f_values.append(tangential_force_l)
+                self.parallel_f_values.append(parallel_g_force_l+parallel_g_force_w)
+                self.running_res_f_values.append(running_res_force_l+running_res_force_w)
+                self.curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
             else:
-                new_velocity = last_velocity
+                new_velocity = self.velocity_values[-1]
                 # NOTE: when surface is not flat, we need to exert force to keep our speed
                 # Is it incline/decline?
                 if self.points[i+1][2] - self.points[i][2] > 0:  # Incline
@@ -443,19 +467,32 @@ class ConsumptionPart:
                 if exerted_force < 0:
                     exerted_force *= self.recuperation_coefficient
 
-            self.series["force_values"][series_i] = final_force
-            self.series["exerted_force_values"][series_i] = exerted_force
-            self.series["velocity_values"][series_i] = new_velocity
-            self.series["acceleration_values"][series_i] = acceleration
-            self.series["dist_values"][series_i] = last_dist+slope_distance
+                # debug:
+                self.tangential_f_values.append(0)
+                self.parallel_f_values.append(parallel_g_force_l+parallel_g_force_w)
+                self.running_res_f_values.append(running_res_force_l+running_res_force_w)
+                self.curve_res_f_values.append(curve_res_force_l+curve_res_force_w)
+
+            # print("new_velocity", new_velocity, self.max_velocities[i])
+            self.force_values.append(final_force)
+            self.exerted_force_values.append(exerted_force)
+            self.velocity_values.append(new_velocity)
+            self.acceleration_values.append(acceleration)
+            self.dist_values.append(self.dist_values[-1]+slope_distance)
+            self.braking_at_the_end.append(0)
 
             if i > 0 and new_velocity > self.max_velocities[i]:
-                end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
+                end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
                 for j in range(len(end_velocity_slow)):
-                    self.series["force_values"][series_i-j] = end_force_slow[j]
-                    self.series["exerted_force_values"][series_i-j] = end_exerted_force_slow[j]
-                    self.series["velocity_values"][series_i-j] = end_velocity_slow[j]
-                    self.series["acceleration_values"][series_i-j] = deceleration_values_slow[j]
+                    self.force_values[-j-1] = end_force_slow[j]
+                    self.exerted_force_values[-j-1] = end_exerted_force_slow[j]
+                    self.velocity_values[-j-1] = end_velocity_slow[j]
+                    self.acceleration_values[-j-1] = deceleration_values_slow[j]
+                    self.tangential_f_values[-i-1] = end_tangential_f_values[j]
+                    self.parallel_f_values[-i-1] = end_parallel_f_values[j]
+                    self.running_res_f_values[-i-1] = end_running_res_f_values[j]
+                    self.curve_res_f_values[-i-1] = end_curve_res_f_values[j]
+                    # self.braking_at_the_end[-i-1] = 1
 
     def run(self):
         # Manually filter elevation values
@@ -471,12 +508,17 @@ class ConsumptionPart:
         self.get_ramp_up_six()
 
         # Braking (going backwards)
-        end_force, end_exerted_force, end_velocity, deceleration_values = self.slow_down_to_max_limit_six(0, len(self.points)-1)
+        end_force, end_exerted_force, end_velocity, deceleration_values, end_tangential_f_values, end_parallel_f_values, end_running_res_f_values, end_curve_res_f_values = self.slow_down_to_max_limit_six(0, len(self.points)-1)
         for i in range(len(end_velocity)):
-            self.series["force_values"][-i-1] = end_force[i]
-            self.series["exerted_force_values"][-i-1] = end_exerted_force[i]
-            self.series["velocity_values"][-i-1] = end_velocity[i]
-            self.series["acceleration_values"][-i-1] = deceleration_values[i]
+            self.force_values[-i-1] = end_force[i]
+            self.exerted_force_values[-i-1] = end_exerted_force[i]
+            self.velocity_values[-i-1] = end_velocity[i]
+            self.acceleration_values[-i-1] = deceleration_values[i]
+            self.tangential_f_values[-i-1] = end_tangential_f_values[i]
+            self.parallel_f_values[-i-1] = end_parallel_f_values[i]
+            self.running_res_f_values[-i-1] = end_running_res_f_values[i]
+            self.curve_res_f_values[-i-1] = end_curve_res_f_values[i]
+            self.braking_at_the_end[-i-1] = 1
 
 
 class Consumption:
@@ -484,7 +526,7 @@ class Consumption:
         # Params
         self.params = {
             "mass_locomotive": 30000,   # kg
-            "mass_wagon": 0,            # kg
+            "mass_wagon": 0,      # kg
             "power_limit": 4500*1000    # 4500 kW
         }
         self.variable_params = {
@@ -514,14 +556,22 @@ class Consumption:
         self.sliders = []
         self.comparison_series = {}
 
-    def init_series(self, length):
+        self.clean()
+
+    def clean(self):
+        # Calculated series
         self.series = {
-            "force_values": np.empty(length),
-            "exerted_force_values": np.empty(length),
-            "dist_values": np.empty(length),
-            "velocity_values": np.empty(length),
-            "acceleration_values": np.empty(length),
-            "energy_from_exerted_force": np.empty(length),
+            "force_values": [],
+            "exerted_force_values": [],
+            "dist_values": [],
+            "velocity_values": [],
+            "acceleration_values": [],
+            "tangential_f_values": [],
+            "parallel_f_values": [],
+            "running_res_f_values": [],
+            "curve_res_f_values": [],
+            "energy_from_exerted_force": [],
+            "braking_at_the_end": []
         }
 
     def insert_comparsion(self, name, data):
@@ -538,36 +588,25 @@ class Consumption:
             )
 
     def load(self, points, stations, velocity_ways):
-        # First initialize working series
-        self.init_series(len(points))
-        # Now load data
         self.points = points
         self.stations = stations
         self.stations.sort()
-        # Max velocities get loaded and converted to m/s
         max_velocities = velocity_ways_to_max_velocity(velocity_ways)
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
-        # Elevation is cropped from first to last station (to make everything same length) # TODO: make into numpy array
+        # Elevation is cropped from first to last station (to make everything same length)
         self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:self.stations[-1]+1]
 
     def run(self):
         station_offset = 1
+        prev_dist_offset = 0
         for i in range(len(self.stations)-1):
             if i == len(self.stations)-2:
                 station_offset = 0
 
-            # Get offsets for ConsumptionPart
-            start_offset = self.stations[i]
-            end_offset = self.stations[i+1]-station_offset+1
-
-            split_points = self.points[start_offset:end_offset]
-            split_max_velocities_in_mps = self.max_velocities_in_mps[start_offset:end_offset]
-            split_series = {}
-            for s in self.series.keys():
-                split_series[s] = self.series[s][start_offset:end_offset]
+            split_points = self.points[self.stations[i]:self.stations[i+1]-station_offset+1]
+            split_max_velocities_in_mps = self.max_velocities_in_mps[self.stations[i]:self.stations[i+1]-station_offset+1]
 
             consumption_part = ConsumptionPart(
-                split_series,
                 self.params["mass_locomotive"],
                 self.params["mass_wagon"],
                 split_points,
@@ -583,9 +622,18 @@ class Consumption:
             )
             consumption_part.run()
 
-            if start_offset > 0:
-                prev_dist = self.series["dist_values"][start_offset-1]
-                self.series["dist_values"][start_offset:end_offset] += prev_dist
+            self.series["force_values"] += consumption_part.force_values
+            self.series["exerted_force_values"] += consumption_part.exerted_force_values
+            self.series["dist_values"] += [d+prev_dist_offset for d in consumption_part.dist_values]
+            self.series["velocity_values"] += consumption_part.velocity_values
+            self.series["acceleration_values"] += consumption_part.acceleration_values
+            self.series["tangential_f_values"] += consumption_part.tangential_f_values
+            self.series["parallel_f_values"] += consumption_part.parallel_f_values
+            self.series["running_res_f_values"] += consumption_part.running_res_f_values
+            self.series["curve_res_f_values"] += consumption_part.curve_res_f_values
+            self.series["braking_at_the_end"] += consumption_part.braking_at_the_end
+
+            prev_dist_offset = self.series["dist_values"][-1]
 
         self.series["energy_from_exerted_force"] = get_energy_from_force(self.series["exerted_force_values"], self.series["dist_values"])
 
