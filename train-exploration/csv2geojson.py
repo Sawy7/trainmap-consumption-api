@@ -6,7 +6,7 @@ import json
 import psycopg2
 from umparse import um_csv_parser, make_geojson
 
-def prep(config, df=None):
+def prep(config, df=None, keep_elevation=False):
     if df is None:
         df = um_csv_parser(config["input"])
     tmp_file = "/tmp/tram-output.geojson"
@@ -25,25 +25,32 @@ def prep(config, df=None):
     
     conn = psycopg2.connect(f'dbname={config["dbname"]} user={config["dbuser"]} password={config["dbpass"]} host={config["host"]}')
     cur = conn.cursor()
-    outputquery = f"""
-    WITH points AS (
-	    SELECT
-	    	ogc_fid,
-	    	ST_DumpPoints(wkb_geometry) AS point,
-	    	ST_DumpPoints(ST_Transform(wkb_geometry, 3035)) AS pointdtm
-	    FROM {config['dbtable']}
-    )
-    SELECT ST_AsGeoJSON(ST_MakeLine(ST_Translate(
-	    ST_Force3DZ((point).geom),
-	    0::double precision,
-	    0::double precision,
-	    ST_Value(dtm.rast,(pointdtm).geom)
-    )    ORDER BY ((point).path))) AS geom
-    FROM points
-    LEFT JOIN dtm_eu AS dtm ON ST_Intersects(dtm.rast, (pointdtm).geom)
-    WHERE ogc_fid = (SELECT MAX(ogc_fid) FROM {config['dbtable']})
-    GROUP BY ogc_fid;
-    """
+    if keep_elevation:
+        outputquery = f"""
+        SELECT ST_AsGeoJSON(wkb_geometry) AS geom
+        FROM {config['dbtable']}
+        WHERE ogc_fid = (SELECT MAX(ogc_fid) FROM {config['dbtable']});
+        """
+    else:
+        outputquery = f"""
+        WITH points AS (
+            SELECT
+                ogc_fid,
+                ST_DumpPoints(wkb_geometry) AS point,
+                ST_DumpPoints(ST_Transform(wkb_geometry, 3035)) AS pointdtm
+            FROM {config['dbtable']}
+        )
+        SELECT ST_AsGeoJSON(ST_MakeLine(ST_Translate(
+            ST_Force3DZ((point).geom),
+            0::double precision,
+            0::double precision,
+            ST_Value(dtm.rast,(pointdtm).geom)
+        )    ORDER BY ((point).path))) AS geom
+        FROM points
+        LEFT JOIN dtm_eu AS dtm ON ST_Intersects(dtm.rast, (pointdtm).geom)
+        WHERE ogc_fid = (SELECT MAX(ogc_fid) FROM {config['dbtable']})
+        GROUP BY ogc_fid;
+        """
     cur.execute(outputquery)
     rows = cur.fetchall()
     if len(rows) != 1:
@@ -53,7 +60,13 @@ def prep(config, df=None):
     last_coord_idx = len(dbjson["coordinates"])-1
     modjson = {"type": dbjson["type"]}
     modjson["station_orders"] = [0, last_coord_idx]
-    modjson["coordinates"] = dbjson["coordinates"]
+    if keep_elevation:
+        modjson["coordinates"] = []
+        for i,p in enumerate(dbjson["coordinates"]):
+            coord = p+[df["altitude"].iloc[i]]
+            modjson["coordinates"].append(coord)
+    else:
+        modjson["coordinates"] = dbjson["coordinates"]
 
     # Velocity ways
     outputquery = f"""
