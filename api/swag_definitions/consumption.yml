@@ -6,7 +6,88 @@ parameters:
       $ref: "#/definitions/AllParams"
 
 definitions:
-  AllParams:
+  VehicleParams:
+    type: "object"
+    properties:
+      mass_locomotive:
+        type: "number"
+        min: 0
+        example: 34500
+        unit: "kg"
+      mass_wagon:
+        type: "number"
+        min: 0
+        example: 0
+        unit: "kg"
+      power_limit:
+        type: "number"
+        min: 0
+        example: 600
+        unit: "kW"
+
+  VariableParams:
+    type: "object"
+    properties:
+      "Elevation smoothing":
+        type: "number"
+        min: 0
+        max: 1000
+        example: 100
+      "Curve smoothing":
+        type: "number"
+        min: 0
+        max: 1000
+        example: 10
+      "Curve A":
+        type: "number"
+        min: 0
+        max: 1000
+        example: 650
+      "Curve B":
+        type: "number"
+        min: 0
+        max: 100
+        example: 55
+      "Running a":
+        type: "number"
+        min: 0
+        max: 2
+        example: 1.35
+      "Running b":
+        type: "number"
+        min: 0
+        max: 0.1
+        example: 0.0008
+      "Running c":
+        type: "number"
+        min: 0
+        max: 0.01
+        example: 0.00033
+      "Recuperation coefficient":
+        type: "number"
+        min: 0
+        max: 1
+        example: 1
+      "Comfortable acceleration":
+        type: "number"
+        min: 0
+        max: 1
+        example: 0.89
+      "Compensation polynomial":
+        type:
+          - array
+          - "null"
+        items:
+          type: "number"
+
+  OutputOptions:
+    type: "object"
+    properties:
+      energy_in_kwh:
+        type: "boolean"
+        example: true
+
+  RailDefinition:
     type: "object"
     properties:
       coordinates:
@@ -35,26 +116,18 @@ definitions:
             velocity:
               type: "number"
               min: 0
-      mass_locomotive_kg:
-        type: "number"
-        min: 0
-        example: 34500
-      mass_wagon_kg:
-        type: "number"
-        min: 0
-        example: 0
-      power_limit_kw:
-        type: "number"
-        min: 0
-        example: 600
-      recuperation_coef:
-        type: "number"
-        min: 0
-        max: 1
-        example: 0.5
-      energy_in_kwh:
-        type: "boolean"
-        example: true
+
+  AllParams:
+    type: "object"
+    properties:
+      params:
+        $ref: "#/definitions/VehicleParams"
+      variable_params:
+        $ref: "#/definitions/VariableParams"
+      output_options:
+        $ref: "#/definitions/OutputOptions"
+      rail_definition:
+        $ref: "#/definitions/RailDefinition"
 
   AllSuccess:
     type: "object"

@@ -1,10 +1,10 @@
 import os
-import json
 from flask import Flask, request, jsonify, make_response
 from flask_restful import Api, Resource
 from flasgger import Swagger, swag_from
 from werkzeug.exceptions import abort
 from tconsumption import Consumption
+import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 
@@ -51,30 +51,35 @@ class ConsumptionCall(Resource):
 
         c = Consumption()
 
-        # Modifiable params
-        c.params["mass_locomotive"] = post_json["mass_locomotive_kg"]
-        c.params["mass_wagon"] = post_json["mass_wagon_kg"]
-        c.variable_params["Recuperation coefficient"] = post_json["recuperation_coef"]
-        c.params["power_limit"] = post_json["power_limit_kw"]*1000
+        # Params
+        for k in post_json["params"]:
+            c.params[k] = post_json["params"][k]
+        c.params["power_limit"] *= 1000 # kW to W
+
+        # Variable params
+        for k in post_json["variable_params"]:
+            c.variable_params[k] = post_json["variable_params"][k]
+        if c.variable_params["Compensation polynomial"] is not None:
+            c.variable_params["Compensation polynomial"] = np.poly1d(c.variable_params["Compensation polynomial"])
 
         c.load(
-            post_json["coordinates"],
-            post_json["station_orders"],
-            post_json["velocity_ways"]
+            post_json["rail_definition"]["coordinates"],
+            post_json["rail_definition"]["station_orders"],
+            post_json["rail_definition"]["velocity_ways"]
         )
         c.run()
         
-        if post_json["energy_in_kwh"]:
+        if post_json["output_options"]["energy_in_kwh"]:
             exerted_energy = [x/3600000 for x in c.series["energy_from_exerted_force"]]
         else:
             exerted_energy = c.series["energy_from_exerted_force"]
 
         return {
-            "force_values": c.series["force_values"],
-            "exerted_force_values": c.series["exerted_force_values"],
-            "dist_values": c.series["dist_values"],
-            "acceleration_values": c.series["acceleration_values"],
-            "velocity_values": c.series["velocity_values"],
+            "force_values": c.series["force_values"].tolist(),
+            "exerted_force_values": c.series["exerted_force_values"].tolist(),
+            "dist_values": c.series["dist_values"].tolist(),
+            "acceleration_values": c.series["acceleration_values"].tolist(),
+            "velocity_values": c.series["velocity_values"].tolist(),
             "exerted_energy": exerted_energy,
             "elevation_values": c.series["elevation_values"]
         }
