@@ -171,8 +171,10 @@ def get_energy_from_force(force_values, dist_values):
     for i in range(len(force_values)):
         if i > 0:
             cur_dist = dist_values[i] - dist_values[i-1]
+            # print(dist_values[i], dist_values[i-1], cur_dist)
         else:
             cur_dist = dist_values[i]
+            # print(dist_values[i], cur_dist)
         running_sum += force_values[i]*cur_dist
         to_return.append(running_sum)
     return to_return
@@ -514,14 +516,15 @@ class Consumption:
         self.sliders = []
         self.comparison_series = {}
 
-    def init_series(self, length):
+    def init_series(self, first_station, last_station):
+        length = last_station + 1 - first_station
         self.series = {
             "force_values": np.empty(length),
             "exerted_force_values": np.empty(length),
             "dist_values": np.empty(length),
             "velocity_values": np.empty(length),
             "acceleration_values": np.empty(length),
-            "energy_from_exerted_force": np.empty(length),
+            "energy_from_exerted_force": [],
         }
 
     def insert_comparsion(self, name, data):
@@ -539,10 +542,10 @@ class Consumption:
 
     def load(self, points, stations, velocity_ways):
         # First initialize working series
-        self.init_series(len(points))
+        self.init_series(stations[0], stations[-1])
         # Now load data
         self.points = points
-        self.stations = stations
+        self.stations = [x-stations[0] for x in stations]
         self.stations.sort()
         # Max velocities get loaded and converted to m/s
         max_velocities = velocity_ways_to_max_velocity(velocity_ways)
