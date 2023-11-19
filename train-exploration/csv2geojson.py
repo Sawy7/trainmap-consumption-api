@@ -71,28 +71,41 @@ def prep(config, df=None, keep_elevation=False):
     # Velocity ways
     outputquery = f"""
     SELECT min(index) AS start_order, max(index) AS end_order, maxspeed FROM (
-		SELECT *, count(is_reset) OVER (ORDER BY index) AS grp FROM (
-			SELECT index, dpoints.geom, closest.id AS way_id, closest.maxspeed,
-			CASE WHEN LAG(closest.id) OVER (ORDER BY index) <> closest.id THEN 1 END AS is_reset
-			FROM
-			(
-				SELECT (ST_DumpPoints(wkb_geometry)).path[1]-1 AS index, ST_Force2D((ST_DumpPoints(wkb_geometry)).geom) AS geom
-				FROM {config['dbtable']}
-				WHERE ogc_fid = (SELECT MAX(ogc_fid) FROM {config['dbtable']})
-			) AS dpoints
-			JOIN LATERAL
-			(
-				SELECT id, maxspeed
-				FROM osm_ways
-				WHERE maxspeed IS NOT NULL
-				ORDER BY dpoints.geom <-> osm_ways.geom
-				LIMIT 1
-			) AS closest
-			ON true
-		) AS indexed
-	) AS grouped
-	GROUP BY way_id, grp, maxspeed
-	ORDER BY min(index);
+        SELECT *, count(is_reset) OVER (ORDER BY index) AS grp FROM (
+            SELECT *, CASE WHEN LAG(maxspeed) OVER (ORDER BY index) <> maxspeed THEN 1 END AS is_reset FROM (
+                SELECT index, dpoints.geom, --closest.id AS way_id, closest.maxspeed,
+                CASE
+                    WHEN LAG(closest.maxspeed) OVER (ORDER BY index) <> closest.maxspeed AND
+                    LAG(closest.maxspeed) OVER (ORDER BY index) = LEAD(closest.maxspeed) OVER (ORDER BY index)
+                        THEN LAG(closest.id) OVER (ORDER BY index)
+                        ELSE closest.id
+                    END AS way_id,
+                CASE
+                    WHEN LAG(closest.maxspeed) OVER (ORDER BY index) <> closest.maxspeed
+                    AND LAG(closest.maxspeed) OVER (ORDER BY index) = LEAD(closest.maxspeed) OVER (ORDER BY index)
+                        THEN LAG(closest.maxspeed) OVER (ORDER BY index)
+                        ELSE closest.maxspeed
+                    END AS maxspeed
+                FROM
+                (
+                    SELECT (ST_DumpPoints(wkb_geometry)).path[1]-1 AS index, ST_Force2D((ST_DumpPoints(wkb_geometry)).geom) AS geom
+                    FROM {config['dbtable']}
+                    WHERE ogc_fid = (SELECT MAX(ogc_fid) FROM {config['dbtable']})
+                ) AS dpoints
+                JOIN LATERAL
+                (
+                    SELECT id, maxspeed, geom
+                    FROM osm_ways
+                    WHERE maxspeed IS NOT NULL
+                    ORDER BY dpoints.geom <-> osm_ways.geom
+                    LIMIT 1
+                ) AS closest
+                ON true
+            ) AS indexed
+        ) AS speedsplit
+    ) AS grouped
+    GROUP BY grp, maxspeed
+    ORDER BY min(index);
     """
     cur.execute(outputquery)
     rows = cur.fetchall()
