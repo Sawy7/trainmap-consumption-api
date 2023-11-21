@@ -42,7 +42,7 @@ class ConsumptionFunction:
         c.params["power_limit"] = self.power_limit
 
         # Variables to tune
-        c.variable_params = params
+        c.variable_params = params.copy()
 
         # Fixed variables
         c.variable_params["Elevation smoothing"] = self.elevation_smoothing
@@ -305,7 +305,7 @@ if __name__ == "__main__":
         },
         {
             "name": "Curve B",
-            "min": 0,
+            "min": 1,
             "max": 100,
             "step": 1,
         },

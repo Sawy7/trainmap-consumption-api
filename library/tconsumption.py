@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import savgol_filter
 from fastdtw import fastdtw
 import json
+from pyproj import Proj
 
 
 # Constants: ##################################################################
@@ -217,25 +218,66 @@ class ConsumptionPart:
 
         # Working lists
         self.series = series
-        self.curve_res_force_all_l = []
-        self.curve_res_force_all_w = []
+        self.curve_res_force_all_l = [0]
+        self.curve_res_force_all_w = [0]
 
     def get_curve_resistance_force(self):
-        # Curve forces
-        for i in range(len(self.points)):
-            if i % 3 == 0:
-                if i+2 < len(self.points):
-                    curve_res_force_l = calc_curve_resistance_force(
-                            self.points[i], self.points[i+1], self.points[i+2],
-                            self.mass_locomotive, *self.curve_res_p)/3
-                    curve_res_force_w = calc_curve_resistance_force(
-                            self.points[i], self.points[i+1], self.points[i+2],
-                            self.mass_wagon, *self.curve_res_p)/3
-                else:
-                    curve_res_force_l = 0
-                    curve_res_force_w = 0
-            self.curve_res_force_all_l.append(curve_res_force_l)
-            self.curve_res_force_all_w.append(curve_res_force_w)
+        # # Curve forces
+        # for i in range(len(self.points)):
+        #     if i % 3 == 0:
+        #         if i+2 < len(self.points):
+        #             curve_res_force_l = calc_curve_resistance_force(
+        #                     self.points[i], self.points[i+1], self.points[i+2],
+        #                     self.mass_locomotive, *self.curve_res_p)/3
+        #             curve_res_force_w = calc_curve_resistance_force(
+        #                     self.points[i], self.points[i+1], self.points[i+2],
+        #                     self.mass_wagon, *self.curve_res_p)/3
+        #         else:
+        #             curve_res_force_l = 0
+        #             curve_res_force_w = 0
+        #     self.curve_res_force_all_l.append(curve_res_force_l)
+        #     self.curve_res_force_all_w.append(curve_res_force_w)
+
+        # # Don't filter if windows == 0
+        # if self.filter_window_curve <= 0:
+        #     return
+
+        # self.curve_res_force_all_l = savgol_filter(
+        #         self.curve_res_force_all_l, self.filter_window_curve,
+        #         0, mode="nearest")
+        # self.curve_res_force_all_w = savgol_filter(
+        #         self.curve_res_force_all_w, self.filter_window_curve,
+        #         0, mode="nearest")
+
+        # return
+
+        x = [p[0] for p in self.points]
+        y = [p[1] for p in self.points]
+
+        czech_proj = Proj("epsg:5514")  # Hardcoded for CZ/SK
+        czech_x, czech_y = czech_proj(x, y)
+
+        dx = np.diff(czech_x)
+        dy = np.diff(czech_y)
+
+        distances = np.sqrt(dx**2 + dy**2)
+        distances[distances == 0] = np.inf
+
+        normalized_dx = dx / distances
+        normalized_dy = dy / distances
+
+        d2x = np.gradient(normalized_dx)
+        d2y = np.gradient(normalized_dy)
+
+        denominator = (normalized_dx**2 + normalized_dy**2)**1.5
+        denominator[denominator == 0] = np.inf
+        radius_of_curvature = np.abs((normalized_dx * d2y - normalized_dy * d2x) / denominator)
+
+        for radius in radius_of_curvature:
+            res = calc_curve_resistance(radius, *self.curve_res_p)
+            # NOTE: resistance is negative, so we flip the sign (and subtract it later in the calcs)
+            self.curve_res_force_all_l.append(-res * (self.mass_locomotive/1000) * G_TO_MS2)
+            self.curve_res_force_all_w.append(-res * (self.mass_wagon/1000) * G_TO_MS2)
 
         # Don't filter if windows == 0
         if self.filter_window_curve <= 0:
@@ -247,6 +289,7 @@ class ConsumptionPart:
         self.curve_res_force_all_w = savgol_filter(
                 self.curve_res_force_all_w, self.filter_window_curve,
                 0, mode="nearest")
+        
 
     def cap_acceleration(self, mass, acceleration, velocity):
         if self.power_limit is None:
