@@ -4,6 +4,8 @@ import ruptures as rpt
 from fastdtw import fastdtw
 import random
 from tabulate import tabulate
+import os.path
+import json
 
 # defines
 BETTER = 0
@@ -13,21 +15,28 @@ NOTHING = 2
 class ConsumptionFunction:
     def __init__(
             self, bounds_and_steps,
-            csv_path, geojson_path,
+            csv_path, geojson_path, cache_path=None,
             mass_locomotive=34500, mass_wagon=0, power_limit=600*1000,
             elevation_smoothing=100, curve_smoothing=10
         ):
         self.bounds_and_steps = bounds_and_steps
         self.csv_path = csv_path
         self.geojson_path = geojson_path
+        self.cache_path = cache_path
         self.mass_locomotive = mass_locomotive
         self.mass_wagon = mass_wagon
         self.power_limit = power_limit
         self.elevation_smoothing = elevation_smoothing
         self.curve_smoothing = curve_smoothing
 
-        self.velocity_segment_cache = None
-        self.station_cache = None
+        if self.cache_path is not None and os.path.isfile(self.cache_path):
+            with open(cache_path, "r") as f:
+                cache_json = json.load(f)
+                self.velocity_segment_cache = cache_json["velocity"]
+                self.station_cache = cache_json["station"]
+        else:
+            self.velocity_segment_cache = None
+            self.station_cache = None
         
     def get_vals(self, params):
         # Measured data
@@ -51,8 +60,11 @@ class ConsumptionFunction:
 
         c.load_from_file(self.geojson_path)
 
+        write_cache = False
+
         # Inferring stops
         if self.station_cache is None:
+            write_cache = True
             stations_stopped = []
             last_row_zero = 0
             for i,row in enumerate(df["tm_rychlost_3_napravy"]):
@@ -72,6 +84,10 @@ class ConsumptionFunction:
             self.velocity_segment_cache = result.copy()
         else:
             result = self.velocity_segment_cache.copy()
+
+        if write_cache and self.cache_path is not None:
+            with open(self.cache_path, "w") as f:
+                json.dump({"station": self.station_cache, "velocity": self.velocity_segment_cache}, f)
 
         to_remove = []
         for i,r in enumerate(result):
@@ -299,7 +315,7 @@ if __name__ == "__main__":
         },
         {
             "name": "Curve A",
-            "min": 1,
+            "min": 0,
             "max": 1000,
             "step": 1,
         },
@@ -339,22 +355,26 @@ if __name__ == "__main__":
         ConsumptionFunction(
             bounds_and_steps,
             DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.csv",
-            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.geojson",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/01-Vozovna-Vresinska_2022-04-20.cache"
         ),
         ConsumptionFunction(
             bounds_and_steps,
             DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.csv",
-            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.geojson",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/02-Vresinska-Zatisi_2022-04-20.cache"
         ),
         ConsumptionFunction(
             bounds_and_steps,
             DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.csv",
-            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.geojson"
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.geojson",
+            DATA_PATH + "DPO/Jízda_Poruba_Zátiší_20.04.2022/03-Zatisi-Vresinska_2022-04-20.cache"
         ),
         ConsumptionFunction(
             bounds_and_steps,
             DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.csv",
-            DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.geojson"
+            DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.geojson",
+            DATA_PATH + "DPO/Jizdy_Centrum_07-08-12_07.2022/1710_02.cache"
         )
     ]
     opti = Optimizer(functions, 10, 1000)

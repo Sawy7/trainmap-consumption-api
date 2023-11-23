@@ -289,7 +289,7 @@ class ConsumptionPart:
         self.curve_res_force_all_w = savgol_filter(
                 self.curve_res_force_all_w, self.filter_window_curve,
                 0, mode="nearest")
-        
+
 
     def cap_acceleration(self, mass, acceleration, velocity):
         if self.power_limit is None:
