@@ -199,7 +199,8 @@ class ConsumptionPart:
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
             power_limit, recuperation_coefficient,
-            comfortable_acceleration, comp_poly):
+            comfortable_acceleration, comp_poly,
+            limit_curve_radius):
         # Input parameters
         self.mass_locomotive = mass_locomotive
         self.mass_wagon = mass_wagon
@@ -212,6 +213,7 @@ class ConsumptionPart:
         self.power_limit = power_limit
         self.recuperation_coefficient = recuperation_coefficient
         self.comfortable_acceleration = comfortable_acceleration
+        self.limit_curve_radius = limit_curve_radius
 
         # Compensation polynomial (velocity)
         self.comp_poly = comp_poly
@@ -222,35 +224,6 @@ class ConsumptionPart:
         self.curve_res_force_all_w = [0]
 
     def get_curve_resistance_force(self):
-        # # Curve forces
-        # for i in range(len(self.points)):
-        #     if i % 3 == 0:
-        #         if i+2 < len(self.points):
-        #             curve_res_force_l = calc_curve_resistance_force(
-        #                     self.points[i], self.points[i+1], self.points[i+2],
-        #                     self.mass_locomotive, *self.curve_res_p)/3
-        #             curve_res_force_w = calc_curve_resistance_force(
-        #                     self.points[i], self.points[i+1], self.points[i+2],
-        #                     self.mass_wagon, *self.curve_res_p)/3
-        #         else:
-        #             curve_res_force_l = 0
-        #             curve_res_force_w = 0
-        #     self.curve_res_force_all_l.append(curve_res_force_l)
-        #     self.curve_res_force_all_w.append(curve_res_force_w)
-
-        # # Don't filter if windows == 0
-        # if self.filter_window_curve <= 0:
-        #     return
-
-        # self.curve_res_force_all_l = savgol_filter(
-        #         self.curve_res_force_all_l, self.filter_window_curve,
-        #         0, mode="nearest")
-        # self.curve_res_force_all_w = savgol_filter(
-        #         self.curve_res_force_all_w, self.filter_window_curve,
-        #         0, mode="nearest")
-
-        # return
-
         x = [p[0] for p in self.points]
         y = [p[1] for p in self.points]
 
@@ -269,9 +242,15 @@ class ConsumptionPart:
         d2x = np.gradient(normalized_dx)
         d2y = np.gradient(normalized_dy)
 
-        denominator = (normalized_dx**2 + normalized_dy**2)**1.5
-        denominator[denominator == 0] = np.inf
-        radius_of_curvature = np.abs((normalized_dx * d2y - normalized_dy * d2x) / denominator)
+        threshold = 1/self.limit_curve_radius
+
+        numerator = (normalized_dx**2 + normalized_dy**2)**1.5
+        numerator[numerator == 0] = np.inf
+        denominator = normalized_dx * d2y - normalized_dy * d2x
+        denominator[denominator < threshold] = threshold
+
+        # NOTE: This is effectively 1/curvature
+        radius_of_curvature = numerator / np.abs(denominator)
 
         for radius in radius_of_curvature:
             res = calc_curve_resistance(radius, *self.curve_res_p)
@@ -289,7 +268,6 @@ class ConsumptionPart:
         self.curve_res_force_all_w = savgol_filter(
                 self.curve_res_force_all_w, self.filter_window_curve,
                 0, mode="nearest")
-
 
     def cap_acceleration(self, mass, acceleration, velocity):
         if self.power_limit is None:
@@ -549,7 +527,8 @@ class Consumption:
             "Compensation polynomial": np.poly1d(
                 [-1.3169756479815293e-14, 4.271539912516026e-11,
                  -3.874542069136512e-08, 2.677139343735735e-08,
-                 0.00962245960144532, 0.619862570600036])
+                 0.00962245960144532, 0.619862570600036]),
+            "Limit curve radius": 1e+6
         }
 
         # Internal data
@@ -625,7 +604,8 @@ class Consumption:
                 self.params["power_limit"],
                 self.variable_params["Recuperation coefficient"],
                 self.variable_params["Comfortable acceleration"],
-                self.variable_params["Compensation polynomial"]
+                self.variable_params["Compensation polynomial"],
+                self.variable_params["Limit curve radius"]
             )
             consumption_part.run()
 
