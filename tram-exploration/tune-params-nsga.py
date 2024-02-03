@@ -316,8 +316,8 @@ if __name__ == "__main__":
         {
             "name": "Curve A",
             "min": 0,
-            "max": 1000,
-            "step": 1,
+            "max": 0,
+            "step": 0,
         },
         {
             "name": "Curve B",
@@ -348,6 +348,12 @@ if __name__ == "__main__":
             "min": 0,
             "max": 1,
             "step": 0.01,
+        },
+        {
+            "name": "Limit curve radius",
+            "min": 1,
+            "max": 1,
+            "step": 0,
         }
     ]
     DATA_PATH="../../enet-sz-data/real_rides/"

@@ -55,7 +55,8 @@ def calc_radius_curve(point_a, point_b, point_c):
 
 
 def calc_curve_resistance(radius, numerator, denominator):
-    return numerator/(radius-denominator)  # [N/kN]
+    # return numerator/(radius-denominator)  # [N/kN]
+    return 0 # TODO: Disabled, remove properly
 
 
 def calc_curve_resistance_force(point_a, point_b, point_c,
@@ -332,27 +333,23 @@ class ConsumptionPart:
                 if exerted_force > 0:
                     exerted_force *= self.recuperation_coefficient
             new_velocity = calc_velocity(acceleration, slope_distance, end_velocity[-1])
-            if len(end_force) > 0:
-                end_velocity.append(new_velocity)
+            end_velocity.append(new_velocity)
             end_force.append(-final_force) # NOTE: Braking force has opposite direction
             end_exerted_force.append(-exerted_force)
             deceleration_values.append(-acceleration) # NOTE: Deceleration has opposite direction
 
             if new_velocity >= self.series["velocity_values"][i]:
-                if len(end_velocity) == 1:
-                    new_velocity = end_velocity[0]
-                else:
-                    new_velocity = self.series["velocity_values"][i]
-                acceleration = calc_reverse_acceleration(end_velocity[-1], slope_distance, new_velocity) # Velocities are in 'reverse' order here (compared to next function)
+                new_velocity = self.series["velocity_values"][i]
+                acceleration = calc_reverse_acceleration(end_velocity[-2], slope_distance, new_velocity) # Velocities are in 'reverse' order here (compared to next function)
                 reverse_force = calc_force(self.mass_locomotive+self.mass_wagon, -acceleration)
                 # Coeficient again
                 exerted_force -= (final_force-reverse_force) * self.recuperation_coefficient
                 final_force = reverse_force
-                end_velocity[-1] = new_velocity
                 end_force[-1] = final_force  # NOTE: Force here already has opposite direction (from reverse_force)
                 end_exerted_force[-1] = -exerted_force
                 deceleration_values[-1] = -acceleration
                 break
+        end_velocity.pop()
         return end_force, end_exerted_force, end_velocity, deceleration_values
 
     def get_ramp_up_six(self):
@@ -401,7 +398,7 @@ class ConsumptionPart:
 
             if not velocity_reached:
                 ##########################################################################################
-                if len(compensated_part) == 0:
+                if len(compensated_part) == 0 and self.comp_poly is not None:
                     end_force_slow = self.slow_down_to_max_limit_six(0, i)[0]
                     slowdown_point_count = len(end_force_slow)
                     if last_dist == 0:
@@ -472,13 +469,14 @@ class ConsumptionPart:
             self.series["acceleration_values"][series_i] = acceleration
             self.series["dist_values"][series_i] = last_dist+slope_distance
 
-            if i > 0 and new_velocity > self.max_velocities[i]:
-                end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow = self.slow_down_to_max_limit_six(self.max_velocities[i], i)
+            if i > 0 and series_i < len(self.max_velocities) and new_velocity > self.max_velocities[series_i]:
+                end_force_slow, end_exerted_force_slow, end_velocity_slow, deceleration_values_slow = self.slow_down_to_max_limit_six(self.max_velocities[series_i], series_i)
                 for j in range(len(end_velocity_slow)):
                     self.series["force_values"][series_i-j] = end_force_slow[j]
                     self.series["exerted_force_values"][series_i-j] = end_exerted_force_slow[j]
                     self.series["velocity_values"][series_i-j] = end_velocity_slow[j]
                     self.series["acceleration_values"][series_i-j] = deceleration_values_slow[j]
+                velocity_reached = True
 
     def run(self):
         # Manually filter elevation values
@@ -566,11 +564,11 @@ class Consumption:
         # First initialize working series
         self.init_series(stations[0], stations[-1])
         # Now load data
-        self.points = points
+        self.points = points[stations[0]:]
         self.stations = [x-stations[0] for x in stations]
         self.stations.sort()
         # Max velocities get loaded and converted to m/s
-        max_velocities = velocity_ways_to_max_velocity(velocity_ways)
+        max_velocities = velocity_ways_to_max_velocity(velocity_ways)[stations[0]:]
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
         # Elevation is cropped from first to last station (to make everything same length) # TODO: make into numpy array
         self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:self.stations[-1]+1]
