@@ -479,12 +479,6 @@ class ConsumptionPart:
                 velocity_reached = True
 
     def run(self):
-        # Manually filter elevation values
-        if self.filter_window_elev > 0:
-            elevation = [x[2] for x in self.points]
-            filtered = savgol_filter(elevation, self.filter_window_elev, 0, mode="nearest")
-            self.points = [[x[0], x[1], filtered[i]] for i,x in enumerate(self.points)]
-
         # Calculate all curve resistance force ahead of time
         self.get_curve_resistance_force()
 
@@ -564,17 +558,27 @@ class Consumption:
         # First initialize working series
         self.init_series(stations[0], stations[-1])
         # Now load data
-        self.points = points[stations[0]:]
-        self.stations = [x-stations[0] for x in stations]
+        self.points = points
+        self.stations = stations
         self.stations.sort()
         # Max velocities get loaded and converted to m/s
-        max_velocities = velocity_ways_to_max_velocity(velocity_ways)[stations[0]:]
+        max_velocities = velocity_ways_to_max_velocity(velocity_ways)
         self.max_velocities_in_mps = [x/3.6 for x in max_velocities]
-        # Elevation is cropped from first to last station (to make everything same length) # TODO: make into numpy array
-        self.series["elevation_values"] = [e[2] for e in self.points][self.stations[0]:self.stations[-1]+1]
+
+    def filter_elevation(self):
+        window_size = self.variable_params["Elevation smoothing"]
+        if window_size > 0:
+            elevation = [x[2] for x in self.points]
+            filtered = savgol_filter(elevation, window_size, 0, mode="nearest")
+            return [[x[0], x[1], filtered[i]] for i, x in enumerate(self.points)]
+        return self.points
 
     def run(self):
+        # Manually filter elevation values
+        filtered_points = self.filter_elevation()
+
         station_offset = 1
+        first_offset = self.stations[0]
         for i in range(len(self.stations)-1):
             if i == len(self.stations)-2:
                 station_offset = 0
@@ -583,8 +587,14 @@ class Consumption:
             start_offset = self.stations[i]
             end_offset = self.stations[i+1]-station_offset+1
 
-            split_points = self.points[start_offset:end_offset]
+            split_points = filtered_points[start_offset:end_offset]
             split_max_velocities_in_mps = self.max_velocities_in_mps[start_offset:end_offset]
+
+            # Shift indexing to zero
+            start_offset -= first_offset
+            end_offset -= first_offset
+
+            # Prepare space for storing part output
             split_series = {}
             for s in self.series.keys():
                 split_series[s] = self.series[s][start_offset:end_offset]
@@ -611,6 +621,7 @@ class Consumption:
                 prev_dist = self.series["dist_values"][start_offset-1]
                 self.series["dist_values"][start_offset:end_offset] += prev_dist
 
+        self.series["elevation_values"] = [e[2] for e in filtered_points][self.stations[0]:self.stations[-1]+1]
         self.series["energy_from_exerted_force"] = get_energy_from_force(self.series["exerted_force_values"], self.series["dist_values"])
 
     def get_dtw(self, name):
