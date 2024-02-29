@@ -55,8 +55,7 @@ def calc_radius_curve(point_a, point_b, point_c):
 
 
 def calc_curve_resistance(radius, numerator, denominator):
-    # return numerator/(radius-denominator)  # [N/kN]
-    return 0 # TODO: Disabled, remove properly
+    return numerator/(radius-denominator)  # [N/kN]
 
 
 def calc_curve_resistance_force(point_a, point_b, point_c,
@@ -200,8 +199,7 @@ class ConsumptionPart:
             max_velocities, filter_window_elev, filter_window_curve,
             curve_res_p: tuple, running_res_p: tuple,
             power_limit, recuperation_coefficient,
-            comfortable_acceleration, comp_poly,
-            limit_curve_radius):
+            comfortable_acceleration, comp_poly):
         # Input parameters
         self.mass_locomotive = mass_locomotive
         self.mass_wagon = mass_wagon
@@ -214,7 +212,6 @@ class ConsumptionPart:
         self.power_limit = power_limit
         self.recuperation_coefficient = recuperation_coefficient
         self.comfortable_acceleration = comfortable_acceleration
-        self.limit_curve_radius = limit_curve_radius
 
         # Compensation polynomial (velocity)
         self.comp_poly = comp_poly
@@ -225,14 +222,24 @@ class ConsumptionPart:
         self.curve_res_force_all_w = [0]
 
     def get_curve_resistance_force(self):
-        x = [p[0] for p in self.points]
-        y = [p[1] for p in self.points]
+        dedup_points = []
+        dedup_points_idx = []
+        for i,p in enumerate(self.points):
+            if i+1 >= len(self.points)-1:
+                continue
+            if p[0] == self.points[i+1][0] and p[1] == self.points[i+1][1]:
+                continue
+            dedup_points.append(p)
+            dedup_points_idx.append(i)
+
+        x = [p[0] for p in dedup_points]
+        y = [p[1] for p in dedup_points]
 
         czech_proj = Proj("epsg:5514")  # Hardcoded for CZ/SK
         czech_x, czech_y = czech_proj(x, y)
 
-        dx = np.diff(czech_x)
-        dy = np.diff(czech_y)
+        dx = np.gradient(czech_x)
+        dy = np.gradient(czech_y)
 
         distances = np.sqrt(dx**2 + dy**2)
         distances[distances == 0] = np.inf
@@ -243,17 +250,22 @@ class ConsumptionPart:
         d2x = np.gradient(normalized_dx)
         d2y = np.gradient(normalized_dy)
 
-        threshold = 1/self.limit_curve_radius
+        numerator = np.abs(normalized_dx * d2y - normalized_dy * d2x)
+        denominator = (normalized_dx**2 + normalized_dy**2)**1.5
+        radius_of_curvature = []
+        for i in range(len(numerator)):
+            if numerator[i] == 0 or denominator[i] == 0:
+                radius_of_curvature.append(np.inf)
+            else:
+                curvature = numerator[i]/denominator[i]
+                radius_of_curvature.append(1/curvature)
 
-        numerator = (normalized_dx**2 + normalized_dy**2)**1.5
-        numerator[numerator == 0] = np.inf
-        denominator = normalized_dx * d2y - normalized_dy * d2x
-        denominator[denominator < threshold] = threshold
+        inflated_radius = [np.inf]*len(self.points)
+        for i in range(len(radius_of_curvature)):
+            idx = dedup_points_idx[i]
+            inflated_radius[idx] = radius_of_curvature[i]
 
-        # NOTE: This is effectively 1/curvature
-        radius_of_curvature = numerator / np.abs(denominator)
-
-        for radius in radius_of_curvature:
+        for radius in inflated_radius:
             res = calc_curve_resistance(radius, *self.curve_res_p)
             # NOTE: resistance is negative, so we flip the sign (and subtract it later in the calcs)
             self.curve_res_force_all_l.append(-res * (self.mass_locomotive/1000) * G_TO_MS2)
@@ -612,8 +624,7 @@ class Consumption:
                 self.params["power_limit"],
                 self.variable_params["Recuperation coefficient"],
                 self.variable_params["Comfortable acceleration"],
-                self.variable_params["Compensation polynomial"],
-                self.variable_params["Limit curve radius"]
+                self.variable_params["Compensation polynomial"]
             )
             consumption_part.run()
 
