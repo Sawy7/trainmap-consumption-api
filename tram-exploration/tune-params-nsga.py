@@ -311,49 +311,41 @@ if __name__ == "__main__":
             "name": "Recuperation coefficient",
             "min": 0,
             "max": 1,
-            "step": 0.01,
         },
         {
             "name": "Curve A",
             "min": 0,
             "max": 0,
-            "step": 0,
         },
         {
             "name": "Curve B",
             "min": 1,
             "max": 100,
-            "step": 1,
         },
         {
             "name": "Running a",
             "min": 0,
             "max": 2,
-            "step": 0.01,
         },
         {
             "name": "Running b",
             "min": 0,
             "max": 0.1,
-            "step": 0.0001,
         },
         {
             "name": "Running c",
             "min": 0,
             "max": 0.01,
-            "step": 0.00001,
         },
         {
             "name": "Comfortable acceleration",
             "min": 0,
             "max": 1,
-            "step": 0.01,
         },
         {
             "name": "Limit curve radius",
             "min": 1,
             "max": 1,
-            "step": 0,
         }
     ]
     DATA_PATH="../../enet-sz-data/real_rides/"
