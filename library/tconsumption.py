@@ -266,8 +266,7 @@ class ConsumptionPart:
             inflated_radius[idx] = radius_of_curvature[i]
 
         for radius in inflated_radius:
-            res = calc_curve_resistance(radius, *self.curve_res_p)
-            # NOTE: resistance is negative, so we flip the sign (and subtract it later in the calcs)
+            res = abs(calc_curve_resistance(radius, *self.curve_res_p))
             self.curve_res_force_all_l.append(-res * (self.mass_locomotive/1000) * G_TO_MS2)
             self.curve_res_force_all_w.append(-res * (self.mass_wagon/1000) * G_TO_MS2)
 
@@ -492,7 +491,11 @@ class ConsumptionPart:
 
     def run(self):
         # Calculate all curve resistance force ahead of time
-        self.get_curve_resistance_force()
+        if self.curve_res_p[0] == 0: # To speed this up
+            self.curve_res_force_all_l = [0]*len(self.points)
+            self.curve_res_force_all_w = [0]*len(self.points)
+        else:
+            self.get_curve_resistance_force()
 
         # The master calculation
         self.get_ramp_up_six()
