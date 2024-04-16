@@ -6,6 +6,7 @@ import random
 from tabulate import tabulate
 import os.path
 import json
+from pprint import pprint
 
 # defines
 BETTER = 0
@@ -294,9 +295,10 @@ class Optimizer:
             best_ind = min(self.individuals, key=lambda x: sum(x.evals))
 
             # Console info
-            print(f"⏲️️  Round {r+1}")
+            print(f"⏲️️ Round {r+1}")
             print("✊ Currently best individual:")
-            print("  Params:", best_ind.params)
+            print("  Params:")
+            pprint(best_ind.params)
             print("  Evals:")
             for i,e in enumerate(best_ind.evals):
                 print(f"    {i}: {e}")
@@ -315,17 +317,17 @@ if __name__ == "__main__":
         {
             "name": "Curve A",
             "min": 0,
-            "max": 0,
+            "max": 1000,
         },
         {
             "name": "Curve B",
             "min": 1,
-            "max": 100,
+            "max": 1000,
         },
         {
             "name": "Running a",
             "min": 0,
-            "max": 2,
+            "max": 20,
         },
         {
             "name": "Running b",
@@ -340,12 +342,7 @@ if __name__ == "__main__":
         {
             "name": "Comfortable acceleration",
             "min": 0,
-            "max": 1,
-        },
-        {
-            "name": "Limit curve radius",
-            "min": 1,
-            "max": 1,
+            "max": 3,
         }
     ]
     DATA_PATH="../../enet-sz-data/real_rides/"

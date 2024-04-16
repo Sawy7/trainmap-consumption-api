@@ -58,7 +58,7 @@ class VelocityFunction:
         c.params["power_limit"] = self.power_limit
 
         # Variables to tune
-        c.variable_params = params
+        c.variable_params = params.copy()
 
         # Fixed variables
         c.variable_params["Elevation smoothing"] = self.elevation_smoothing
@@ -365,43 +365,36 @@ if __name__ == "__main__":
             "name": "Recuperation coefficient",
             "min": 0,
             "max": 1,
-            "step": 0.01,
         },
         {
             "name": "Curve A",
-            "min": 1,
-            "max": 1000,
-            "step": 1,
+            "min": 0,
+            "max": 0,
         },
         {
             "name": "Curve B",
             "min": 0,
-            "max": 100,
-            "step": 1,
+            "max": 1000,
         },
         {
             "name": "Running a",
             "min": 0,
-            "max": 2,
-            "step": 0.01,
+            "max": 20,
         },
         {
             "name": "Running b",
             "min": 0,
             "max": 0.1,
-            "step": 0.0001,
         },
         {
             "name": "Running c",
             "min": 0,
             "max": 0.01,
-            "step": 0.00001,
         },
         {
             "name": "Comfortable acceleration",
             "min": 0,
-            "max": 1,
-            "step": 0.01,
+            "max": 3,
         }
     ]
 
