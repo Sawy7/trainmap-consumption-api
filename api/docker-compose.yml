@@ -1,0 +1,7 @@
+services:
+  consumption:
+    build:
+      context: ../
+      dockerfile: ./api/Dockerfile
+    image: trainmap-consumption
+    container_name: trainmap-consumption
