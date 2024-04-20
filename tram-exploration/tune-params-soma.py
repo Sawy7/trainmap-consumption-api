@@ -227,7 +227,7 @@ if __name__ == "__main__":
             "step": 0.01,
         }
     ]
-    DATA_PATH="../../enet-sz-data/real_rides/"
+    DATA_PATH="../data/real_rides/"
     soma = SOMA(migrations=20, pop_size=20, prt=1, step=1, path_length=10)
     csf = ConsumptionFunction(
         bounds_and_steps=bounds_and_steps,

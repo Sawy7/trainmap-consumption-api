@@ -5,7 +5,7 @@ import os
 from fastdtw import fastdtw
 import multiprocessing
 
-DATA_PATH="../../enet-sz-data/real_rides/"
+DATA_PATH="../data/real_rides/"
 
 REF_PAIRS = [
     (

@@ -11,3 +11,6 @@ ruptures
 tabulate
 ipyleaflet
 pyproj
+ipykernel
+ipywidgets
+jupyterlab

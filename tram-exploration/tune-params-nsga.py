@@ -345,7 +345,7 @@ if __name__ == "__main__":
             "max": 3,
         }
     ]
-    DATA_PATH="../../enet-sz-data/real_rides/"
+    DATA_PATH="../data/real_rides/"
     functions = [
         ConsumptionFunction(
             bounds_and_steps,
